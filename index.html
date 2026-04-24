@@ -369,13 +369,7 @@ function toSentenceCase(word, isFirstInSentence) {
   // Standalone "I" always capitalized
   if (lower === 'i') return word.replace(bare, 'I');
 
-  // Acronym rule: 2-5 letters, all uppercase — but skip if it's a contraction
-  // Contractions (IT'S, DON'T, WON'T) contain an apostrophe and need sentence casing,
-  // not acronym preservation. NASA'S (possessive acronym) is fine to keep as-is too,
-  // so we only exclude words where the apostrophe falls mid-word like a contraction.
-  const hasContraction = /[A-Z]'[A-Z]/.test(bare); // apostrophe between letters = contraction
-  const lettersOnly = bare.replace(/'/g, '');
-  if (/^[A-Z]{2,5}$/.test(lettersOnly) && !hasContraction) return word;
+
 
   // Known proper nouns always capitalized
   if (ALWAYS_CAP.has(titleCase)) {
