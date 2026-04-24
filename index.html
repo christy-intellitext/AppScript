@@ -363,22 +363,18 @@ function fixCapsAndSpelling(text) {
 function toSentenceCase(word, isFirstInSentence) {
   const lower = word.toLowerCase();
   const titleCase = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  const lowerCase = word.toLowerCase();
 
-  // Always capitalize these
+  // Standalone "I" always capitalized
+  if (lower === 'i') return 'I';
+
+  // Known proper nouns always capitalized
   if (ALWAYS_CAP.has(titleCase)) return titleCase;
 
-  // Standalone "I"
-  if (word === 'I' || lower === 'i') return 'I';
-
-  // First word of sentence always capitalized
+  // First word of sentence capitalized
   if (isFirstInSentence) return titleCase;
 
-  // Common lowercase words mid-sentence
-  if (ALWAYS_LOWER.has(lower)) return lowerCase;
-
-  // Everything else: title case
-  return titleCase;
+  // Everything else lowercase
+  return lower;
 }
 
 function convertAllCaps(text) {
