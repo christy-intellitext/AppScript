@@ -361,20 +361,31 @@ function fixCapsAndSpelling(text) {
 // ── Rule-based all-caps conversion ───────────────────────────────────────────
 
 function toSentenceCase(word, isFirstInSentence) {
-  const lower = word.toLowerCase();
-  const titleCase = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  // Strip surrounding punctuation to get the bare word for checks
+  const bare = word.replace(/^[^a-zA-Z']+|[^a-zA-Z']+$/g, '');
+  const lower = bare.toLowerCase();
+  const titleCase = bare.charAt(0).toUpperCase() + bare.slice(1).toLowerCase();
 
   // Standalone "I" always capitalized
-  if (lower === 'i') return 'I';
+  if (lower === 'i') return word.replace(bare, 'I');
+
+  // Acronym rule: 2-5 letters, all uppercase, no lowercase — keep as-is
+  // Strip apostrophes for this check so IT'S, NASA'S etc. still match
+  const lettersOnly = bare.replace(/'/g, '');
+  if (/^[A-Z]{2,5}$/.test(lettersOnly)) return word;
 
   // Known proper nouns always capitalized
-  if (ALWAYS_CAP.has(titleCase)) return titleCase;
+  if (ALWAYS_CAP.has(titleCase)) {
+    return word.replace(bare, titleCase);
+  }
 
   // First word of sentence capitalized
-  if (isFirstInSentence) return titleCase;
+  if (isFirstInSentence) {
+    return word.replace(bare, titleCase);
+  }
 
   // Everything else lowercase
-  return lower;
+  return word.toLowerCase();
 }
 
 function convertAllCaps(text) {
@@ -383,36 +394,24 @@ function convertAllCaps(text) {
   const upperCount = (text.match(/[A-Z]/g) || []).length;
   const isAllCaps = letters.length > 0 && (upperCount / letters.length) > 0.85;
 
-  if (!isAllCaps) return text; // Don't touch mixed-case text
+  if (!isAllCaps) return text;
 
-  // Split into words, convert each
+  // Split on whitespace, preserving it
   let isFirstInSentence = true;
-  const words = text.split(/(\s+)/);
-  const result = words.map(token => {
-    if (/^\s+$/.test(token)) return token; // preserve whitespace
+  const tokens = text.split(/(\s+)/);
 
-    const converted = toSentenceCase(token.replace(/[^a-zA-Z']/g, ''), isFirstInSentence);
+  const result = tokens.map(token => {
+    if (/^\s+$/.test(token)) return token;
 
-    // Rebuild with original punctuation
-    const punctMatch = token.match(/^([^a-zA-Z']*)(.*?)([^a-zA-Z']*)$/);
-    let out = token;
-    if (punctMatch) {
-      out = punctMatch[1] + converted + punctMatch[3];
-    }
+    const converted = toSentenceCase(token, isFirstInSentence);
 
-    // Determine if next word starts a new sentence
-    isFirstInSentence = /[.!?]\s*$/.test(token);
+    // Update sentence state: does this token end with sentence-ending punctuation?
+    isFirstInSentence = /[.!?]['")\]]*$/.test(token);
 
-    return out;
+    return converted;
   });
 
   let converted = result.join('');
-
-  // Fix contractions that got mangled
-  Object.entries(CONTRACTIONS).forEach(([bad, good]) => {
-    const re = new RegExp('\\b' + good.replace("'", "'?") + '\\b', 'gi');
-    converted = converted.replace(re, good);
-  });
 
   // Fix double punctuation
   converted = converted.replace(/([.!?])\1+/g, '$1');
