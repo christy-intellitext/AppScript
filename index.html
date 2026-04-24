@@ -489,23 +489,26 @@ function run() {
   status.textContent = 'Processing...';
   status.className = 'status';
 
-  const cleaned = applyCleanup(raw, cleanupMode);
-  const rows = splitScript(cleaned, maxLen);
-  processedRows = rows;
+  // Small delay so the browser can render the status update before processing
+  setTimeout(() => {
+    const cleaned = applyCleanup(raw, cleanupMode);
+    const rows = splitScript(cleaned, maxLen);
+    processedRows = rows;
 
-  const tbody = document.getElementById('previewBody');
-  tbody.innerHTML = '';
-  rows.forEach((line, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i + 1}</td><td>${escHtml(line)}</td>`;
-    tbody.appendChild(tr);
-  });
+    const tbody = document.getElementById('previewBody');
+    tbody.innerHTML = '';
+    rows.forEach((line, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i + 1}</td><td>${escHtml(line)}</td>`;
+      tbody.appendChild(tr);
+    });
 
-  document.getElementById('rowCount').textContent = `${rows.length} rows`;
-  document.getElementById('previewWrap').style.display = '';
-  document.getElementById('downloadBtn').disabled = false;
-  status.textContent = `Done — ${rows.length} rows`;
-  status.className = 'status ok';
+    document.getElementById('rowCount').textContent = `${rows.length} rows`;
+    document.getElementById('previewWrap').style.display = '';
+    document.getElementById('downloadBtn').disabled = false;
+    status.textContent = `Done — ${rows.length} rows`;
+    status.className = 'status ok';
+  }, 30);
 }
 
 // ── Excel export ──────────────────────────────────────────────────────────────
