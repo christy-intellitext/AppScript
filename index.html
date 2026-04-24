@@ -351,27 +351,42 @@ function processScript() {
   const paragraphs = raw.split(/\r?\n/).map(cleanText).filter(Boolean);
 
   for (const para of paragraphs) {
-    const segments = para.split(/(\[[^\]]*\])/);
-    for (const seg of segments) {
-      const s = seg.trim();
-      if (!s) continue;
-      if (/^\[.*\]$/.test(s)) { rows.push(s); continue; }
+    // First, scan the paragraph for inline speaker IDs and split on them
+    // e.g. "...welcome Martin Chase. Martin Chase: Today my life..."
+    // becomes two paragraphs: everything before, and the speaker + speech
+    const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Z][a-zA-Z'\-]+\.?\s+){0,2}[A-Z][a-zA-Z'\-]+\.?)\s*:\s*/g;
+    const subParas = [];
+    let lastIndex = 0;
+    let match;
+    speakerSplitRe.lastIndex = 0;
+    while ((match = speakerSplitRe.exec(para)) !== null) {
+      // Only treat as speaker ID if it starts after a sentence boundary or at start of para
+      const before = para.slice(lastIndex, match.index).trim();
+      if (before) subParas.push({ type: 'text', text: before });
+      subParas.push({ type: 'speaker', text: match[1].trim() + ':' });
+      lastIndex = match.index + match[0].length;
+    }
+    const remaining = para.slice(lastIndex).trim();
+    if (remaining) subParas.push({ type: 'text', text: remaining });
 
-      // Check for speaker identifier (e.g. "Dan Morgan: Good evening...")
-      let textToProcess = s;
-      const speaker = extractSpeakerId(s);
-      if (speaker) {
-        rows.push(speaker.label);
-        textToProcess = speaker.rest;
+    for (const sub of subParas) {
+      if (sub.type === 'speaker') {
+        rows.push(sub.text);
+        continue;
       }
-      if (!textToProcess) continue;
 
-      const sentences = splitIntoSentences(textToProcess);
-      for (const sentence of sentences) {
-        if (sentence.length > maxLen && sentence.split(' ').length > 5) {
-          splitLongLine(sentence, maxLen).forEach(l => rows.push(l));
-        } else {
-          rows.push(sentence);
+      const segments = sub.text.split(/(\[[^\]]*\])/);
+      for (const seg of segments) {
+        const s = seg.trim();
+        if (!s) continue;
+        if (/^\[.*\]$/.test(s)) { rows.push(s); continue; }
+        const sentences = splitIntoSentences(s);
+        for (const sentence of sentences) {
+          if (sentence.length > maxLen && sentence.split(' ').length > 5) {
+            splitLongLine(sentence, maxLen).forEach(l => rows.push(l));
+          } else {
+            rows.push(sentence);
+          }
         }
       }
     }
