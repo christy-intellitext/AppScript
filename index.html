@@ -219,7 +219,6 @@
         <div class="toggle-btn">
           <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
           <button id="cleanup-fix" onclick="setCleanup('fix')">Fix caps &amp; spelling</button>
-          <button id="cleanup-caps" onclick="setCleanup('caps')">Convert all-caps</button>
         </div>
       </div>
     </div>
@@ -259,38 +258,10 @@ let cleanupMode = 'off';
 
 function setCleanup(mode) {
   cleanupMode = mode;
-  ['off','fix','caps'].forEach(m => {
+  ['off','fix'].forEach(m => {
     document.getElementById('cleanup-' + m).classList.toggle('active', m === mode);
   });
 }
-
-// ── Proper noun / always-capitalize list ──────────────────────────────────────
-// Words that should always be capitalized regardless of position.
-// Add institution names, sponsor names, event names here as needed.
-const ALWAYS_CAP = new Set([
-  // Titles
-  'Mr','Mrs','Ms','Dr','Prof','Rev','Hon','Gen','Col','Capt','Lt','Sgt',
-  'Gov','Sen','Rep','Adm','Cmdr','Jr','Sr',
-  // Days / months
-  'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
-  'January','February','March','April','May','June','July','August',
-  'September','October','November','December',
-  // Places — Nevada / UNR context
-  'Nevada','Reno','America','American','Americans','United','States',
-  'Colombia','Colombian','Connecticut',
-  // Institutions
-  'University','Air','Force','Police','Alliance','Congress','Senate',
-  // Religions / nationalities often capitalized
-  'God','English','Spanish','French','Latin',
-  // Event-specific
-  'Ironman','Pararescueman','Engage',
-]);
-
-// Words that should stay lowercase even after a period (articles, conjunctions, prepositions)
-const ALWAYS_LOWER = new Set([
-  'a','an','the','and','but','or','nor','for','so','yet',
-  'at','by','in','of','on','to','up','as','if','it',
-]);
 
 // Known contractions to restore apostrophes
 const CONTRACTIONS = {
@@ -358,75 +329,10 @@ function fixCapsAndSpelling(text) {
   return text;
 }
 
-// ── Rule-based all-caps conversion ───────────────────────────────────────────
-
-function toSentenceCase(word, isFirstInSentence) {
-  // Strip surrounding punctuation to get the bare word for checks
-  const bare = word.replace(/^[^a-zA-Z']+|[^a-zA-Z']+$/g, '');
-  const lower = bare.toLowerCase();
-  const titleCase = bare.charAt(0).toUpperCase() + bare.slice(1).toLowerCase();
-
-  // Standalone "I" always capitalized
-  if (lower === 'i') return word.replace(bare, 'I');
-
-
-
-  // Known proper nouns always capitalized
-  if (ALWAYS_CAP.has(titleCase)) {
-    return word.replace(bare, titleCase);
-  }
-
-  // First word of sentence capitalized
-  if (isFirstInSentence) {
-    return word.replace(bare, titleCase);
-  }
-
-  // Everything else lowercase
-  return word.toLowerCase();
-}
-
-function convertAllCaps(text) {
-  // Check if text is predominantly uppercase
-  const letters = text.replace(/[^a-zA-Z]/g, '');
-  const upperCount = (text.match(/[A-Z]/g) || []).length;
-  const isAllCaps = letters.length > 0 && (upperCount / letters.length) > 0.85;
-
-  if (!isAllCaps) return text;
-
-  // Split on whitespace, preserving it
-  let isFirstInSentence = true;
-  const tokens = text.split(/(\s+)/);
-
-  const result = tokens.map(token => {
-    if (/^\s+$/.test(token)) return token;
-
-    const converted = toSentenceCase(token, isFirstInSentence);
-
-    // Update sentence state: does this token end with sentence-ending punctuation?
-    isFirstInSentence = /[.!?]['")\]]*$/.test(token);
-
-    return converted;
-  });
-
-  let converted = result.join('');
-
-  // Fix double punctuation
-  converted = converted.replace(/([.!?])\1+/g, '$1');
-
-  return converted;
-}
-
 // ── Master cleanup dispatcher ─────────────────────────────────────────────────
 
 function applyCleanup(text, mode) {
-  if (mode === 'off') return text;
-  if (mode === 'caps') {
-    // Run all-caps conversion paragraph by paragraph
-    return text.split(/\r?\n/).map(line => convertAllCaps(line)).join('\n');
-  }
-  if (mode === 'fix') {
-    return fixCapsAndSpelling(text);
-  }
+  if (mode === 'fix') return fixCapsAndSpelling(text);
   return text;
 }
 
