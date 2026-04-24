@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Script Line Splitter</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #f5f4f0;
+    color: #1a1a1a;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  header { margin-bottom: 8px; }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #777;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e4e2dc;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #888;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 220px;
+    padding: 12px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.75;
+    background: #fafaf8;
+    border: 1px solid #e4e2dc;
+    border-radius: 8px;
+    color: #1a1a1a;
+    resize: vertical;
+    outline: none;
+    transition: border-color .15s;
+  }
+  textarea:focus { border-color: #aaa; }
+  textarea::placeholder { color: #bbb; }
+
+  .controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+  .field { display: flex; flex-direction: column; }
+
+  input[type=number] {
+    width: 90px;
+    padding: 9px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: #fafaf8;
+    border: 1px solid #e4e2dc;
+    border-radius: 8px;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input[type=number]:focus { border-color: #aaa; }
+
+  .btn {
+    padding: 9px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #1a1a1a; color: #fff; }
+  .btn-primary:hover { background: #333; }
+  .btn-primary:disabled { opacity: .35; cursor: default; }
+  .btn-secondary { background: #f0efe9; border: 1px solid #e4e2dc; color: #1a1a1a; }
+  .btn-secondary:hover:not(:disabled) { background: #e8e7e0; }
+  .btn-secondary:disabled { opacity: .35; cursor: default; }
+
+  .status {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: #888;
+    align-self: center;
+  }
+  .status.ok { color: #2d7a3a; }
+  .status.err { color: #b53a2f; }
+
+  .preview-wrap {
+    border: 1px solid #e4e2dc;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    background: #fafaf8;
+    border-bottom: 1px solid #e4e2dc;
+    font-size: 11px;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .preview-table-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-family: 'DM Mono', monospace; font-size: 12px; }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    padding: 7px 12px;
+    background: #fafaf8;
+    border-bottom: 1px solid #e4e2dc;
+    color: #888;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  thead th:first-child { width: 56px; text-align: center; }
+
+  tbody tr:nth-child(even) td { background: #fafaf8; }
+
+  tbody td {
+    padding: 5px 12px;
+    border-bottom: 1px solid #f0efe9;
+    color: #1a1a1a;
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  tbody td:first-child { text-align: center; color: #bbb; font-size: 11px; width: 56px; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #bbb;
+    padding-top: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Script Line Splitter</h1>
+    <p class="subtitle">Paste a commencement script, set your max line length, and download a numbered Excel file.</p>
+  </header>
+
+  <div class="card">
+    <div>
+      <label>Paste script text</label>
+      <textarea id="input" placeholder="Paste your commencement script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
+    </div>
+
+    <div class="controls">
+      <div class="field">
+        <label>Max chars / line</label>
+        <input type="number" id="maxLen" value="150" min="40" max="500">
+      </div>
+      <button class="btn btn-primary" onclick="processScript()">Process script</button>
+      <button class="btn btn-secondary" id="downloadBtn" onclick="downloadExcel()" disabled>Download .xlsx</button>
+      <span class="status" id="status"></span>
+    </div>
+
+    <div class="preview-wrap" id="previewWrap" style="display:none">
+      <div class="preview-header">
+        <span>Preview</span>
+        <span id="rowCount"></span>
+      </div>
+      <div class="preview-table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Line</th></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>University of Nevada, Reno &mdash; Commencement Tools</footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let processedRows = [];
+
+const ABBREVS = new Set([
+  'Mr','Ms','Mrs','Dr','Jr','Sr','St','Prof','Rev','Hon','Pres',
+  'Ph','No','Vol','Dept','Univ','vs','Gov','Rep','Sen','Lt','Sgt',
+  'Cpl','Pvt','Capt','Maj','Col','Gen','Adm','Cmdr','Supt','Dir'
+]);
+
+function cleanText(t) {
+  return t
+    .replace(/\u2019/g, "'").replace(/[\u2018\u201A]/g, "'")
+    .replace(/[\u201C\u201D\u201E]/g, '"')
+    .replace(/\u2014/g, ' -- ').replace(/\u2013/g, '-')
+    .replace(/\u2026/g, '...').replace(/[ \t]+/g, ' ').trim();
+}
+
+function isSentenceEnd(words, idx) {
+  const word = words[idx];
+  if (!/[.!?]$/.test(word)) return false;
+  const stem = word.replace(/[.!?]+$/, '');
+  if (ABBREVS.has(stem)) return false;
+  if (/^[A-Z]$/.test(stem)) return false;
+  return true;
+}
+
+function splitIntoSentences(text) {
+  const words = text.split(' ').filter(Boolean);
+  const sentences = [];
+  let current = [];
+  for (let i = 0; i < words.length; i++) {
+    current.push(words[i]);
+    const nextWord = words[i + 1];
+    if (isSentenceEnd(words, i) && nextWord && /^[A-Z\[]/.test(nextWord)) {
+      sentences.push(current.join(' '));
+      current = [];
+    }
+  }
+  if (current.length) sentences.push(current.join(' '));
+  return sentences;
+}
+
+function splitLongLine(text, maxLen) {
+  if (text.length <= maxLen) return [text];
+
+  // 1. Em-dash natural breaks
+  if (text.includes(' -- ')) {
+    const parts = text.split(' -- ').map(p => p.trim()).filter(Boolean);
+    if (parts.every(p => p.length <= maxLen)) return parts;
+  }
+
+  // 2. Comma splits — find last comma where both sides fit and right side has 3+ words
+  const commaPositions = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === ',' && i < text.length - 1) commaPositions.push(i);
+  }
+  if (commaPositions.length) {
+    let bestSplit = null;
+    for (const pos of commaPositions) {
+      const left = text.slice(0, pos + 1).trim();
+      const right = text.slice(pos + 1).trim();
+      if (left.length <= maxLen && right.length > 0 && right.split(' ').length >= 3) {
+        bestSplit = { left, right };
+      }
+    }
+    if (bestSplit) {
+      return [
+        ...splitLongLine(bestSplit.left, maxLen),
+        ...splitLongLine(bestSplit.right, maxLen)
+      ];
+    }
+  }
+
+  // 3. Word-wrap fallback
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current ? current + ' ' + word : word;
+    if (candidate.length <= maxLen || !current) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+
+  if (lines.length > 1) {
+    const last = lines[lines.length - 1];
+    const overflow = text.length - maxLen;
+    if (last.split(' ').length === 1 && overflow <= 20) return [text];
+  }
+
+  return lines;
+}
+
+function processScript() {
+  const raw = document.getElementById('input').value;
+  const maxLen = parseInt(document.getElementById('maxLen').value) || 150;
+  const status = document.getElementById('status');
+
+  if (!raw.trim()) {
+    status.textContent = 'Nothing to process.';
+    status.className = 'status err';
+    return;
+  }
+
+  status.textContent = 'Processing...';
+  status.className = 'status';
+
+  const rows = [];
+  const paragraphs = raw.split(/\r?\n/).map(cleanText).filter(Boolean);
+
+  for (const para of paragraphs) {
+    const segments = para.split(/(\[[^\]]*\])/);
+    for (const seg of segments) {
+      const s = seg.trim();
+      if (!s) continue;
+      if (/^\[.*\]$/.test(s)) { rows.push(s); continue; }
+      const sentences = splitIntoSentences(s);
+      for (const sentence of sentences) {
+        if (sentence.length > maxLen && sentence.split(' ').length > 5) {
+          splitLongLine(sentence, maxLen).forEach(l => rows.push(l));
+        } else {
+          rows.push(sentence);
+        }
+      }
+    }
+  }
+
+  processedRows = rows;
+
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+  rows.forEach((line, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td>${escHtml(line)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('rowCount').textContent = `${rows.length} rows`;
+  document.getElementById('previewWrap').style.display = '';
+  document.getElementById('downloadBtn').disabled = false;
+  status.textContent = `Done — ${rows.length} rows`;
+  status.className = 'status ok';
+}
+
+function downloadExcel() {
+  if (!processedRows.length) return;
+  const wsData = [['#', 'Line'], ...processedRows.map((r, i) => [i + 1, r])];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 6 }, { wch: 80 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Script Lines');
+  XLSX.writeFile(wb, 'script_lines.xlsx');
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') processScript();
+});
+</script>
+</body>
+</html>
