@@ -33,10 +33,7 @@
     margin-bottom: 4px;
   }
 
-  .subtitle {
-    font-size: 13px;
-    color: #777;
-  }
+  .subtitle { font-size: 13px; color: #777; }
 
   .card {
     background: #fff;
@@ -77,7 +74,6 @@
   textarea::placeholder { color: #bbb; }
 
   .controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-
   .field { display: flex; flex-direction: column; }
 
   input[type=number] {
@@ -94,6 +90,49 @@
   }
   input[type=number]:focus { border-color: #aaa; }
 
+  .options-row {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: #fafaf8;
+    border: 1px solid #e4e2dc;
+    border-radius: 8px;
+  }
+
+  .option-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  .toggle-group { display: flex; align-items: center; gap: 10px; }
+
+  .toggle-btn {
+    display: flex;
+    border: 1px solid #e4e2dc;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .toggle-btn button {
+    padding: 5px 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    background: #fff;
+    color: #888;
+    cursor: pointer;
+    transition: background .1s, color .1s;
+  }
+
+  .toggle-btn button.active { background: #1a1a1a; color: #fff; }
+  .toggle-btn button + button { border-left: 1px solid #e4e2dc; }
+
   .btn {
     padding: 9px 20px;
     font-family: 'DM Sans', sans-serif;
@@ -107,26 +146,18 @@
   }
   .btn:active { transform: scale(.97); }
   .btn-primary { background: #1a1a1a; color: #fff; }
-  .btn-primary:hover { background: #333; }
+  .btn-primary:hover:not(:disabled) { background: #333; }
   .btn-primary:disabled { opacity: .35; cursor: default; }
   .btn-secondary { background: #f0efe9; border: 1px solid #e4e2dc; color: #1a1a1a; }
   .btn-secondary:hover:not(:disabled) { background: #e8e7e0; }
   .btn-secondary:disabled { opacity: .35; cursor: default; }
 
-  .status {
-    font-size: 12px;
-    font-family: 'DM Mono', monospace;
-    color: #888;
-    align-self: center;
-  }
+  .status { font-size: 12px; font-family: 'DM Mono', monospace; color: #888; align-self: center; }
   .status.ok { color: #2d7a3a; }
   .status.err { color: #b53a2f; }
+  .status.working { color: #b07d1a; }
 
-  .preview-wrap {
-    border: 1px solid #e4e2dc;
-    border-radius: 8px;
-    overflow: hidden;
-  }
+  .preview-wrap { border: 1px solid #e4e2dc; border-radius: 8px; overflow: hidden; }
 
   .preview-header {
     display: flex;
@@ -172,12 +203,7 @@
   tbody td:first-child { text-align: center; color: #bbb; font-size: 11px; width: 56px; }
   tbody tr:last-child td { border-bottom: none; }
 
-  footer {
-    text-align: center;
-    font-size: 11px;
-    color: #bbb;
-    padding-top: 8px;
-  }
+  footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
 </style>
 </head>
 <body>
@@ -185,7 +211,7 @@
 
   <header>
     <h1>Script Line Splitter</h1>
-    <p class="subtitle">Paste a commencement script, set your max line length, and download a numbered Excel file.</p>
+    <p class="subtitle">Paste a commencement script, set your options, and download a numbered Excel file.</p>
   </header>
 
   <div class="card">
@@ -194,12 +220,23 @@
       <textarea id="input" placeholder="Paste your commencement script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
     </div>
 
+    <div class="options-row">
+      <span class="option-label">AI Cleanup</span>
+      <div class="toggle-group">
+        <div class="toggle-btn">
+          <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
+          <button id="cleanup-fix" onclick="setCleanup('fix')">Fix caps &amp; spelling</button>
+          <button id="cleanup-caps" onclick="setCleanup('caps')">Convert all-caps</button>
+        </div>
+      </div>
+    </div>
+
     <div class="controls">
       <div class="field">
         <label>Max chars / line</label>
         <input type="number" id="maxLen" value="150" min="40" max="500">
       </div>
-      <button class="btn btn-primary" onclick="processScript()">Process script</button>
+      <button class="btn btn-primary" id="processBtn" onclick="run()">Process script</button>
       <button class="btn btn-secondary" id="downloadBtn" onclick="downloadExcel()" disabled>Download .xlsx</button>
       <span class="status" id="status"></span>
     </div>
@@ -225,6 +262,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let processedRows = [];
+let cleanupMode = 'off';
+
+function setCleanup(mode) {
+  cleanupMode = mode;
+  ['off','fix','caps'].forEach(m => {
+    document.getElementById('cleanup-' + m).classList.toggle('active', m === mode);
+  });
+}
+
+// ── Text helpers ──────────────────────────────────────────────────────────────
 
 const ABBREVS = new Set([
   'Mr','Ms','Mrs','Dr','Jr','Sr','St','Prof','Rev','Hon','Pres',
@@ -249,19 +296,6 @@ function isSentenceEnd(words, idx) {
   return true;
 }
 
-// Matches: "Dan Morgan:" / "Dr. Johnson:" / "Morgan:" — proper name(s) + colon at start of text
-// Allows an optional title prefix (Dr., Mr., etc.) followed by 1-3 capitalized name words
-const SPEAKER_RE = /^((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Z][a-zA-Z'\-]+\.?\s+){0,2}[A-Z][a-zA-Z'\-]+\.?)\s*:\s*/;
-
-function extractSpeakerId(text) {
-  const match = text.match(SPEAKER_RE);
-  if (!match) return null;
-  return {
-    label: match[1].trim() + ':',
-    rest: text.slice(match[0].length).trim()
-  };
-}
-
 function splitIntoSentences(text) {
   const words = text.split(' ').filter(Boolean);
   const sentences = [];
@@ -281,13 +315,11 @@ function splitIntoSentences(text) {
 function splitLongLine(text, maxLen) {
   if (text.length <= maxLen) return [text];
 
-  // 1. Em-dash natural breaks
   if (text.includes(' -- ')) {
     const parts = text.split(' -- ').map(p => p.trim()).filter(Boolean);
     if (parts.every(p => p.length <= maxLen)) return parts;
   }
 
-  // 2. Comma splits — find last comma where both sides fit and right side has 3+ words
   const commaPositions = [];
   for (let i = 0; i < text.length; i++) {
     if (text[i] === ',' && i < text.length - 1) commaPositions.push(i);
@@ -309,7 +341,6 @@ function splitLongLine(text, maxLen) {
     }
   }
 
-  // 3. Word-wrap fallback
   const words = text.split(' ');
   const lines = [];
   let current = '';
@@ -333,34 +364,43 @@ function splitLongLine(text, maxLen) {
   return lines;
 }
 
-function processScript() {
-  const raw = document.getElementById('input').value;
-  const maxLen = parseInt(document.getElementById('maxLen').value) || 150;
-  const status = document.getElementById('status');
+// ── AI cleanup ────────────────────────────────────────────────────────────────
 
-  if (!raw.trim()) {
-    status.textContent = 'Nothing to process.';
-    status.className = 'status err';
-    return;
-  }
+async function aiCleanup(text, mode) {
+  const systemPrompt = mode === 'caps'
+    ? `You are a script editor. The script you receive is written entirely in ALL CAPS. Convert it to proper mixed case with correct capitalization for sentences, proper nouns, titles, and names. Fix any obvious spelling errors and missing apostrophes. Do NOT change any words, phrasing, or content. Do NOT add or remove sentences. Return only the corrected script text with absolutely no commentary, explanation, or markdown.`
+    : `You are a script editor. Fix ONLY the following in this commencement script: missing capitalization at sentence starts, random mid-sentence capitals on non-proper words, lowercase "i" as a pronoun, missing apostrophes in contractions (its->it's, doctors->doctor's), obvious misspellings, and double punctuation. Do NOT change any words, phrasing, or content. Do NOT rewrite or restructure anything. Return only the corrected script text with absolutely no commentary, explanation, or markdown.`;
 
-  status.textContent = 'Processing...';
-  status.className = 'status';
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: text }]
+    })
+  });
 
+  if (!response.ok) throw new Error('API error ' + response.status);
+  const data = await response.json();
+  return data.content.find(b => b.type === 'text')?.text?.trim() || text;
+}
+
+// ── Core split logic ──────────────────────────────────────────────────────────
+
+function splitScript(rawText, maxLen) {
   const rows = [];
-  const paragraphs = raw.split(/\r?\n/).map(cleanText).filter(Boolean);
+  const paragraphs = rawText.split(/\r?\n/).map(cleanText).filter(Boolean);
 
   for (const para of paragraphs) {
-    // First, scan the paragraph for inline speaker IDs and split on them
-    // e.g. "...welcome Martin Chase. Martin Chase: Today my life..."
-    // becomes two paragraphs: everything before, and the speaker + speech
     const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Z][a-zA-Z'\-]+\.?\s+){0,2}[A-Z][a-zA-Z'\-]+\.?)\s*:\s*/g;
     const subParas = [];
     let lastIndex = 0;
     let match;
     speakerSplitRe.lastIndex = 0;
+
     while ((match = speakerSplitRe.exec(para)) !== null) {
-      // Only treat as speaker ID if it starts after a sentence boundary or at start of para
       const before = para.slice(lastIndex, match.index).trim();
       if (before) subParas.push({ type: 'text', text: before });
       subParas.push({ type: 'speaker', text: match[1].trim() + ':' });
@@ -370,10 +410,7 @@ function processScript() {
     if (remaining) subParas.push({ type: 'text', text: remaining });
 
     for (const sub of subParas) {
-      if (sub.type === 'speaker') {
-        rows.push(sub.text);
-        continue;
-      }
+      if (sub.type === 'speaker') { rows.push(sub.text); continue; }
 
       const segments = sub.text.split(/(\[[^\]]*\])/);
       for (const seg of segments) {
@@ -391,7 +428,45 @@ function processScript() {
       }
     }
   }
+  return rows;
+}
 
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+async function run() {
+  const raw = document.getElementById('input').value;
+  const maxLen = parseInt(document.getElementById('maxLen').value) || 150;
+  const status = document.getElementById('status');
+  const processBtn = document.getElementById('processBtn');
+
+  if (!raw.trim()) {
+    status.textContent = 'Nothing to process.';
+    status.className = 'status err';
+    return;
+  }
+
+  processBtn.disabled = true;
+  document.getElementById('downloadBtn').disabled = true;
+
+  let textToProcess = raw;
+
+  if (cleanupMode !== 'off') {
+    status.textContent = cleanupMode === 'caps' ? 'Converting all-caps...' : 'Cleaning up text...';
+    status.className = 'status working';
+    try {
+      textToProcess = await aiCleanup(raw, cleanupMode);
+    } catch (e) {
+      status.textContent = 'Cleanup failed — processing original.';
+      status.className = 'status err';
+      await new Promise(r => setTimeout(r, 1500));
+      textToProcess = raw;
+    }
+  } else {
+    status.textContent = 'Processing...';
+    status.className = 'status';
+  }
+
+  const rows = splitScript(textToProcess, maxLen);
   processedRows = rows;
 
   const tbody = document.getElementById('previewBody');
@@ -405,9 +480,12 @@ function processScript() {
   document.getElementById('rowCount').textContent = `${rows.length} rows`;
   document.getElementById('previewWrap').style.display = '';
   document.getElementById('downloadBtn').disabled = false;
+  processBtn.disabled = false;
   status.textContent = `Done — ${rows.length} rows`;
   status.className = 'status ok';
 }
+
+// ── Excel export ──────────────────────────────────────────────────────────────
 
 function downloadExcel() {
   if (!processedRows.length) return;
@@ -424,7 +502,7 @@ function escHtml(t) {
 }
 
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') processScript();
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') run();
 });
 </script>
 </body>
