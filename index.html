@@ -160,13 +160,13 @@
 
   <header>
     <h1>Script Line Splitter</h1>
-    <p class="subtitle">Paste a commencement script, set your max line length, and download a numbered Excel file.</p>
+    <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
   <div class="card">
     <div>
       <label>Paste script text</label>
-      <textarea id="input" placeholder="Paste your commencement script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
+      <textarea id="input" placeholder="Paste your script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
     </div>
 
     <div class="controls">
@@ -233,7 +233,8 @@ function splitIntoSentences(text) {
   for (let i = 0; i < words.length; i++) {
     current.push(words[i]);
     const nextWord = words[i + 1];
-    if (isSentenceEnd(words, i) && nextWord && /^[A-Z\[]/.test(nextWord)) {
+    // Split if sentence ends and next word is capitalized, OR if it's the last word
+    if (isSentenceEnd(words, i) && (!nextWord || /^[A-Z\[]/.test(nextWord))) {
       sentences.push(current.join(' '));
       current = [];
     }
@@ -324,8 +325,9 @@ function splitScript(rawText, maxLen) {
     for (const sub of subParas) {
       if (sub.type === 'speaker') { rows.push(sub.text); continue; }
 
-      // Split on bracketed stage directions, preserving order
-      const segments = sub.text.split(/(\[[^\]]*\])/);
+      // Split on bracketed stage directions only when standalone (not mid-word)
+      // Matches [Applause] but NOT find[ing]
+      const segments = sub.text.split(/((?:^|(?<=\s))\[[^\]]*\](?=\s|$))/);
       for (const seg of segments) {
         const s = seg.trim();
         if (!s) continue;
