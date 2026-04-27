@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Script Line Splitter v1.7</title>
+<title>Script Line Splitter v1.9</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,7 +223,7 @@
 <div class="container">
 
   <header>
-    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v1.7</span></h1>
+    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v1.9</span></h1>
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
@@ -243,8 +243,8 @@
 
     <div class="options-row" id="customWordsRow" style="display:none">
       <span class="option-label">Keep capitalized</span>
-      <input type="text" id="customWords" placeholder="e.g. NASA, Nevada, BYU, Dr. Johnson, ROTC">
-      <span class="hint">Comma-separated names, acronyms, or phrases to preserve</span>
+      <input type="text" id="customWords" placeholder="e.g. NASA, Vikki, (Heather Speed) -- wrap in () for phrase-only">
+      <span class="hint">Plain = match anywhere &nbsp;|&nbsp; (Phrase) = only as a complete phrase</span>
     </div>
 
     <div class="controls">
@@ -316,9 +316,19 @@ const PROTECTED = new Set([
   'Nevada','Reno','UNR','UNLV','University',
 ]);
 
+// Parse the custom words field.
+// Entries wrapped in parentheses e.g. (Heather Speed) are "phrase-only" --
+// the entire phrase is matched as a unit, so "speed" alone is left untouched.
+// Plain entries like Vikki are matched at any word boundary as before.
 function getCustomWords() {
   const raw = document.getElementById('customWords').value;
-  return raw.split(',').map(w => w.trim()).filter(Boolean);
+  return raw.split(',').map(w => w.trim()).filter(Boolean).map(entry => {
+    const phraseMatch = entry.match(/^\((.+)\)$/);
+    if (phraseMatch) {
+      return { text: phraseMatch[1].trim(), phraseOnly: true };
+    }
+    return { text: entry, phraseOnly: false };
+  });
 }
 
 function capitalizeSentenceStarts(text) {
@@ -339,10 +349,18 @@ function applyUndoCaps(text) {
     const re = new RegExp(`\\b${word.toLowerCase()}\\b`, 'g');
     text = text.replace(re, word);
   });
-  getCustomWords().forEach(word => {
+  getCustomWords().forEach(({ text: word, phraseOnly }) => {
     if (!word) return;
-    const re = new RegExp(`\\b${word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-    text = text.replace(re, word);
+    const escaped = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (phraseOnly) {
+      // Match only the exact multi-word phrase, case-insensitive
+      const re = new RegExp(escaped, 'gi');
+      text = text.replace(re, word);
+    } else {
+      // Match at any word boundary
+      const re = new RegExp('\\b' + escaped + '\\b', 'gi');
+      text = text.replace(re, word);
+    }
   });
   return text;
 }
