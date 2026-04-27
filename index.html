@@ -28,15 +28,6 @@
   h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #777; }
 
-  .step-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: #aaa;
-    margin-bottom: 12px;
-  }
-
   .card {
     background: #fff;
     border: 1px solid #e4e2dc;
@@ -59,7 +50,7 @@
 
   textarea {
     width: 100%;
-    height: 200px;
+    height: 220px;
     padding: 12px 14px;
     font-family: 'Comfortaa', sans-serif;
     font-size: 12px;
@@ -74,12 +65,6 @@
   }
   textarea:focus { border-color: #aaa; }
   textarea::placeholder { color: #bbb; }
-
-  textarea.editable {
-    background: #fffef5;
-    border-color: #d4c97a;
-  }
-  textarea.editable:focus { border-color: #b5a830; }
 
   .controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; }
@@ -97,29 +82,6 @@
     transition: border-color .15s;
   }
   input[type=number]:focus { border-color: #aaa; }
-
-  .btn {
-    padding: 9px 20px;
-    font-family: 'Comfortaa', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: opacity .15s, transform .1s;
-    white-space: nowrap;
-  }
-  .btn:active { transform: scale(.97); }
-  .btn-primary { background: #1a1a1a; color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #333; }
-  .btn-primary:disabled { opacity: .35; cursor: default; }
-  .btn-secondary { background: #f0efe9; border: 1px solid #e4e2dc; color: #1a1a1a; }
-  .btn-secondary:hover:not(:disabled) { background: #e8e7e0; }
-  .btn-secondary:disabled { opacity: .35; cursor: default; }
-
-  .status { font-size: 12px; font-family: 'Comfortaa', sans-serif; color: #888; align-self: center; }
-  .status.ok { color: #2d7a3a; }
-  .status.err { color: #b53a2f; }
 
   .options-row {
     display: flex;
@@ -161,11 +123,28 @@
   .toggle-btn button.active { background: #1a1a1a; color: #fff; }
   .toggle-btn button + button { border-left: 1px solid #e4e2dc; }
 
-  .hint {
-    font-size: 11px;
-    color: #aaa;
-    font-style: italic;
+  .btn {
+    padding: 9px 20px;
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    white-space: nowrap;
   }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #1a1a1a; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #333; }
+  .btn-primary:disabled { opacity: .35; cursor: default; }
+  .btn-secondary { background: #f0efe9; border: 1px solid #e4e2dc; color: #1a1a1a; }
+  .btn-secondary:hover:not(:disabled) { background: #e8e7e0; }
+  .btn-secondary:disabled { opacity: .35; cursor: default; }
+
+  .status { font-size: 12px; font-family: 'Comfortaa', sans-serif; color: #888; align-self: center; }
+  .status.ok { color: #2d7a3a; }
+  .status.err { color: #b53a2f; }
 
   .preview-wrap { border: 1px solid #e4e2dc; border-radius: 8px; overflow: hidden; }
 
@@ -214,22 +193,6 @@
   tbody tr:last-child td { border-bottom: none; }
 
   footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
-
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: #ccc;
-    font-size: 11px;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e4e2dc;
-  }
 </style>
 </head>
 <body>
@@ -240,65 +203,40 @@
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
-  <!-- Step 1 -->
-  <div>
-    <div class="step-label">Step 1 — Paste &amp; clean</div>
-    <div class="card">
-      <div>
-        <label>Paste script text</label>
-        <textarea id="input" placeholder="Paste your script here..."></textarea>
-      </div>
+  <div class="card">
+    <div>
+      <label>Paste script text</label>
+      <textarea id="input" placeholder="Paste your script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
+    </div>
 
-      <div class="options-row">
-        <span class="option-label">Cleanup</span>
-        <div class="toggle-btn">
-          <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
-          <button id="cleanup-spell" onclick="setCleanup('spell')">Spell check</button>
-          <button id="cleanup-caps" onclick="setCleanup('caps')">Undo all-caps</button>
-        </div>
-      </div>
-
-      <div class="controls">
-        <button class="btn btn-primary" onclick="runCleanup()">Clean text</button>
-        <span class="status" id="cleanStatus"></span>
-      </div>
-
-      <!-- Editable cleaned text — hidden until cleanup runs -->
-      <div id="cleanedWrap" style="display:none">
-        <label>Cleaned text — review and edit before processing</label>
-        <textarea id="cleaned" class="editable" placeholder="Cleaned text will appear here..."></textarea>
-        <p class="hint">You can manually fix anything before processing below.</p>
+    <div class="options-row">
+      <span class="option-label">Cleanup</span>
+      <div class="toggle-btn">
+        <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
+        <button id="cleanup-caps" onclick="setCleanup('caps')">Undo all-caps</button>
       </div>
     </div>
-  </div>
 
-  <div class="divider">Step 2</div>
-
-  <!-- Step 2 -->
-  <div>
-    <div class="step-label">Step 2 — Split &amp; download</div>
-    <div class="card">
-      <div class="controls">
-        <div class="field">
-          <label>Max chars / line</label>
-          <input type="number" id="maxLen" value="150" min="40" max="500">
-        </div>
-        <button class="btn btn-primary" id="processBtn" onclick="run()">Process script</button>
-        <button class="btn btn-secondary" id="downloadBtn" onclick="downloadExcel()" disabled>Download .xlsx</button>
-        <span class="status" id="status"></span>
+    <div class="controls">
+      <div class="field">
+        <label>Max chars / line</label>
+        <input type="number" id="maxLen" value="150" min="40" max="500">
       </div>
+      <button class="btn btn-primary" id="processBtn" onclick="run()">Process script</button>
+      <button class="btn btn-secondary" id="downloadBtn" onclick="downloadExcel()" disabled>Download .xlsx</button>
+      <span class="status" id="status"></span>
+    </div>
 
-      <div class="preview-wrap" id="previewWrap" style="display:none">
-        <div class="preview-header">
-          <span>Preview</span>
-          <span id="rowCount"></span>
-        </div>
-        <div class="preview-table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>Line</th></tr></thead>
-            <tbody id="previewBody"></tbody>
-          </table>
-        </div>
+    <div class="preview-wrap" id="previewWrap" style="display:none">
+      <div class="preview-header">
+        <span>Preview</span>
+        <span id="rowCount"></span>
+      </div>
+      <div class="preview-table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Line</th></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -314,28 +252,12 @@ let cleanupMode = 'off';
 
 function setCleanup(mode) {
   cleanupMode = mode;
-  ['off','spell','caps'].forEach(m => {
+  ['off','caps'].forEach(m => {
     document.getElementById('cleanup-' + m).classList.toggle('active', m === mode);
   });
 }
 
-// ── Cleanup logic ─────────────────────────────────────────────────────────────
-
-const SPELLING_FIXES = {
-  'dont'    : "don't",   'doesnt'  : "doesn't", 'didnt'   : "didn't",
-  'cant'    : "can't",   'wont'    : "won't",    'wouldnt' : "wouldn't",
-  'couldnt' : "couldn't",'shouldnt': "shouldn't",'isnt'    : "isn't",
-  'arent'   : "aren't",  'wasnt'   : "wasn't",   'werent'  : "weren't",
-  'hasnt'   : "hasn't",  'havent'  : "haven't",  'hadnt'   : "hadn't",
-  'thats'   : "that's",  'whats'   : "what's",   'whos'    : "who's",
-  'hes'     : "he's",    'shes'    : "she's",
-  'theyre'  : "they're", 'youre'   : "you're",
-  'ive'     : "I've",    'youve'   : "you've",   'weve'    : "we've",   'theyve': "they've",
-  'youll'   : "you'll",  'hell'    : "he'll",    'shell'   : "she'll",
-  'theyll'  : "they'll", 'youd'    : "you'd",    'hed'     : "he'd",
-  'shed'    : "she'd",   'theyd'   : "they'd",
-  'im'      : "I'm",
-};
+// ── Cleanup ───────────────────────────────────────────────────────────────────
 
 function capitalizeSentenceStarts(text) {
   text = text.replace(/^([a-z])/, c => c.toUpperCase());
@@ -347,17 +269,6 @@ function fixPronouns(text) {
   return text.replace(/(?<![a-zA-Z])i(?![a-zA-Z])/g, 'I');
 }
 
-function applySpellCheck(text) {
-  text = text.replace(/\b([a-zA-Z]+)\b/g, word => {
-    if (word.includes("'")) return word;
-    const fix = SPELLING_FIXES[word.toLowerCase()];
-    return fix || word;
-  });
-  text = fixPronouns(text);
-  text = capitalizeSentenceStarts(text);
-  return text;
-}
-
 function applyUndoCaps(text) {
   text = text.toLowerCase();
   text = capitalizeSentenceStarts(text);
@@ -366,31 +277,8 @@ function applyUndoCaps(text) {
 }
 
 function applyCleanup(text) {
-  if (cleanupMode === 'spell') return applySpellCheck(text);
-  if (cleanupMode === 'caps')  return applyUndoCaps(text);
+  if (cleanupMode === 'caps') return applyUndoCaps(text);
   return text;
-}
-
-function runCleanup() {
-  const raw = document.getElementById('input').value;
-  const cleanStatus = document.getElementById('cleanStatus');
-
-  if (!raw.trim()) {
-    cleanStatus.textContent = 'Nothing to clean.';
-    cleanStatus.className = 'status err';
-    return;
-  }
-
-  const result = applyCleanup(raw);
-  document.getElementById('cleaned').value = result;
-  document.getElementById('cleanedWrap').style.display = '';
-
-  if (cleanupMode === 'off') {
-    cleanStatus.textContent = 'No cleanup applied — text copied as-is.';
-  } else {
-    cleanStatus.textContent = 'Done — review and edit below.';
-  }
-  cleanStatus.className = 'status ok';
 }
 
 // ── Text helpers ──────────────────────────────────────────────────────────────
@@ -446,9 +334,7 @@ function splitLongLine(text, maxLen) {
   let inQuote = false;
   for (let i = 0; i < text.length; i++) {
     if (text[i] === '"') inQuote = !inQuote;
-    if (text[i] === ',' && !inQuote && i < text.length - 1) {
-      commaPositions.push(i);
-    }
+    if (text[i] === ',' && !inQuote && i < text.length - 1) commaPositions.push(i);
   }
 
   if (commaPositions.length) {
@@ -539,13 +425,7 @@ function splitScript(rawText, maxLen) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function run() {
-  // Use cleaned text if available, otherwise fall back to raw input
-  const cleanedEl = document.getElementById('cleaned');
-  const cleanedWrap = document.getElementById('cleanedWrap');
-  const raw = cleanedWrap.style.display !== 'none' && cleanedEl.value.trim()
-    ? cleanedEl.value
-    : document.getElementById('input').value;
-
+  const raw = document.getElementById('input').value;
   const maxLen = parseInt(document.getElementById('maxLen').value) || 150;
   const status = document.getElementById('status');
 
@@ -559,7 +439,8 @@ function run() {
   status.className = 'status';
 
   setTimeout(() => {
-    const rows = splitScript(raw, maxLen);
+    const cleaned = applyCleanup(raw);
+    const rows = splitScript(cleaned, maxLen);
     processedRows = rows;
 
     const tbody = document.getElementById('previewBody');
