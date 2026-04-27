@@ -153,6 +153,46 @@
   tbody tr:last-child td { border-bottom: none; }
 
   footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
+
+  .options-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: #fafaf8;
+    border: 1px solid #e4e2dc;
+    border-radius: 8px;
+  }
+
+  .option-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  .toggle-btn {
+    display: flex;
+    border: 1px solid #e4e2dc;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .toggle-btn button {
+    padding: 5px 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    background: #fff;
+    color: #888;
+    cursor: pointer;
+    transition: background .1s, color .1s;
+  }
+
+  .toggle-btn button.active { background: #1a1a1a; color: #fff; }
+  .toggle-btn button + button { border-left: 1px solid #e4e2dc; }
 </style>
 </head>
 <body>
@@ -167,6 +207,15 @@
     <div>
       <label>Paste script text</label>
       <textarea id="input" placeholder="Paste your script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
+    </div>
+
+    <div class="options-row">
+      <span class="option-label">Cleanup</span>
+      <div class="toggle-btn">
+        <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
+        <button id="cleanup-spell" onclick="setCleanup('spell')">Spell check</button>
+        <button id="cleanup-caps" onclick="setCleanup('caps')">Undo all-caps</button>
+      </div>
     </div>
 
     <div class="controls">
@@ -200,6 +249,74 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let processedRows = [];
+
+let cleanupMode = 'off';
+
+function setCleanup(mode) {
+  cleanupMode = mode;
+  ['off','spell','caps'].forEach(m => {
+    document.getElementById('cleanup-' + m).classList.toggle('active', m === mode);
+  });
+}
+
+// Known misspellings / contraction fixes
+// Only safe, unambiguous corrections — no context-dependent words like "its"
+const SPELLING_FIXES = {
+  'dont'    : "don't",   'doesnt'  : "doesn't", 'didnt'   : "didn't",
+  'cant'    : "can't",   'wont'    : "won't",    'wouldnt' : "wouldn't",
+  'couldnt' : "couldn't",'shouldnt': "shouldn't",'isnt'    : "isn't",
+  'arent'   : "aren't",  'wasnt'   : "wasn't",   'werent'  : "weren't",
+  'hasnt'   : "hasn't",  'havent'  : "haven't",  'hadnt'   : "hadn't",
+  'thats'   : "that's",  'whats'   : "what's",   'whos'    : "who's",
+  'hes'     : "he's",    'shes'    : "she's",
+  'theyre'  : "they're", 'youre'   : "you're",
+  'ive'     : "I've",    'youve'   : "you've",   'weve'    : "we've",   'theyve': "they've",
+  'youll'   : "you'll",  'hell'    : "he'll",    'shell'   : "she'll",
+  'theyll'  : "they'll", 'youd'    : "you'd",    'hed'     : "he'd",
+  'shed'    : "she'd",   'theyd'   : "they'd",
+  'im'      : "I'm",
+};
+
+// Capitalize the first letter after sentence-ending punctuation and at start of text
+function capitalizeSentenceStarts(text) {
+  // Start of text
+  text = text.replace(/^([a-z])/, c => c.toUpperCase());
+  // After . ! ? followed by whitespace
+  text = text.replace(/([.!?]['")\]]*)\s+([a-z])/g, (m, punct, letter) => punct + ' ' + letter.toUpperCase());
+  return text;
+}
+
+// Fix standalone lowercase "i" as pronoun
+function fixPronouns(text) {
+  return text.replace(/(?<![a-zA-Z])i(?![a-zA-Z])/g, 'I');
+}
+
+function applySpellCheck(text) {
+  // Fix known misspellings/contractions (only words without apostrophe already)
+  text = text.replace(/\b([a-zA-Z]+)\b/g, word => {
+    if (word.includes("'")) return word;
+    const fix = SPELLING_FIXES[word.toLowerCase()];
+    return fix || word;
+  });
+  text = fixPronouns(text);
+  text = capitalizeSentenceStarts(text);
+  return text;
+}
+
+function applyUndoCaps(text) {
+  // Step 1: convert everything to lowercase
+  text = text.toLowerCase();
+  // Step 2: capitalize sentence starts and "I"
+  text = capitalizeSentenceStarts(text);
+  text = fixPronouns(text);
+  return text;
+}
+
+function applyCleanup(text) {
+  if (cleanupMode === 'spell') return applySpellCheck(text);
+  if (cleanupMode === 'caps')  return applyUndoCaps(text);
+  return text;
+}
 
 // ── Text helpers ──────────────────────────────────────────────────────────────
 
@@ -370,7 +487,8 @@ function run() {
   status.className = 'status';
 
   setTimeout(() => {
-    const rows = splitScript(raw, maxLen);
+    const cleaned = applyCleanup(raw);
+    const rows = splitScript(cleaned, maxLen);
     processedRows = rows;
 
     const tbody = document.getElementById('previewBody');
