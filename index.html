@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Script Line Splitter v2.0</title>
+<title>Script Line Splitter v2.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,7 +223,7 @@
 <div class="container">
 
   <header>
-    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v2.0</span></h1>
+    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v2.1</span></h1>
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
@@ -242,9 +242,9 @@
     </div>
 
     <div class="options-row" id="customWordsRow" style="display:none; flex-direction: column; align-items: flex-start; gap: 8px;">
-      <span class="option-label">Fix Capitalization</span>
+      <span class="option-label">Capitalization exceptions</span>
       <input type="text" id="customWords" placeholder="e.g., Transcriber, (Christy Joy), (TypeWell Transcriber)" style="width:100%;">
-      <span class="hint">Comma-separated words that should be capitalized. Exact matching phrases should be put in parentheses.</span>
+      <span class="hint">Comma-separated list of words that should be capitalized. Words that should only be capitalized when in an exact matching phrase should be put in parentheses.</span>
     </div>
 
     <div class="controls">
@@ -660,12 +660,37 @@ function downloadExcel() {
   // Read from the DOM so any edits made in the preview are captured
   const editedRows = [...document.querySelectorAll('#previewBody tr')].map(tr => tr.cells[1].textContent);
   if (!editedRows.length) return;
-  const wsData = [['#', 'Line'], ...editedRows.map((r, i) => [i + 1, r])];
+
+  // Build sheet data:
+  // Col A = row number (bold), Col B = line text, Col C = TRIM(A&" "&B) formula
+  const wsData = [['#', 'Line', 'Combined']];
+  editedRows.forEach((line, i) => {
+    wsData.push([i + 1, line, { f: `TRIM(A${i+2}&" "&B${i+2})` }]);
+  });
+
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{ wch: 6 }, { wch: 80 }];
+
+  // Bold the header row and all cells in column A
+  const boldStyle = { font: { bold: true } };
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = 0; R <= range.e.r; R++) {
+    const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+    if (ws[cellA]) {
+      ws[cellA].s = boldStyle;
+    }
+  }
+  // Also bold the header row across all columns
+  for (let C = 0; C <= 2; C++) {
+    const cell = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (ws[cell]) ws[cell].s = boldStyle;
+  }
+
+  ws['!cols'] = [{ wch: 6 }, { wch: 80 }, { wch: 90 }];
+
+  // Use XLSX with cellStyles enabled
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Script Lines');
-  XLSX.writeFile(wb, 'script_lines.xlsx');
+  XLSX.writeFile(wb, 'script_lines.xlsx', { cellStyles: true });
 }
 
 function escHtml(t) {
