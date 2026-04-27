@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Script Line Splitter v1.9</title>
+<title>Script Line Splitter v2.0</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,7 +223,7 @@
 <div class="container">
 
   <header>
-    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v1.9</span></h1>
+    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v2.0</span></h1>
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
@@ -312,8 +312,8 @@ const PROTECTED = new Set([
   'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
   'January','February','March','April','May','June','July',
   'August','September','October','November','December',
-  'American','Americans','America','United','States','God','English',
-  'Nevada','Reno','UNR','UNLV','University',
+  'American','Americans','America','United','States','God','English','President','System',
+  'Nevada','Reno','UNR','UNLV','University','Sandoval','Regent','Regents',
 ]);
 
 // Parse the custom words field.
@@ -341,6 +341,12 @@ function fixPronouns(text) {
   return text.replace(/(?<![a-zA-Z])i(?![a-zA-Z])/g, 'I');
 }
 
+// Multi-word phrases that should always be title-cased as a unit in undo-caps mode.
+const PROTECTED_PHRASES = [
+  'Nevada System of Higher Education',
+  'President Sandoval',
+];
+
 function applyUndoCaps(text) {
   text = text.toLowerCase();
   text = capitalizeSentenceStarts(text);
@@ -348,6 +354,12 @@ function applyUndoCaps(text) {
   PROTECTED.forEach(word => {
     const re = new RegExp(`\\b${word.toLowerCase()}\\b`, 'g');
     text = text.replace(re, word);
+  });
+  // Restore protected multi-word phrases as a unit
+  PROTECTED_PHRASES.forEach(phrase => {
+    const escaped = phrase.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(escaped, 'gi');
+    text = text.replace(re, phrase);
   });
   getCustomWords().forEach(({ text: word, phraseOnly }) => {
     if (!word) return;
