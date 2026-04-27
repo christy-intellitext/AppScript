@@ -339,8 +339,7 @@ const PROTECTED_PHRASES = [
   'President Sandoval',
 ];
 
-// Apply undo-caps to a single already-split output line.
-// At this point the line is a true sentence or fragment -- safe to capitalize the start.
+// Applied per output row after splitting
 function applyUndoCapsToLine(text) {
   text = text.toLowerCase();
   text = capitalizeSentenceStarts(text);
@@ -467,6 +466,50 @@ function splitLongLine(text, maxLen) {
   return lines;
 }
 
+// ── Paragraph joining ─────────────────────────────────────────────────────────
+
+// Determines whether a line is a "paragraph break" -- i.e. a blank line,
+// a stage direction, a speaker label, or a page-header line (date/page number).
+// These should NOT be joined with adjacent lines.
+function isParagraphBreak(line) {
+  if (!line) return true;
+  // Stage direction: wrapped in parens or brackets
+  if (/^\(.*\)$/.test(line) || /^\[.*\]$/.test(line)) return true;
+  // Speaker label: ends with colon
+  if (/^[A-Za-z][A-Za-z\s'\-\.]*:$/.test(line)) return true;
+  // Page header heuristic: contains digits and looks like metadata (e.g. "12/6/2025December 2025 – AM Commencement ScriptPage 14 of 19")
+  if (/\bpage\s+\d+\s+of\s+\d+\b/i.test(line)) return true;
+  return false;
+}
+
+// Joins soft-wrapped lines within each paragraph into single continuous strings.
+// Hard paragraph breaks (blank lines, stage directions, speaker labels, headers)
+// are preserved as their own entries.
+function joinSoftWraps(rawText) {
+  const lines = rawText.split(/\r?\n/).map(t => cleanText(t));
+  const paragraphs = [];
+  let current = '';
+
+  for (const line of lines) {
+    if (!line) {
+      // Blank line = paragraph boundary
+      if (current) { paragraphs.push(current); current = ''; }
+      continue;
+    }
+    if (isParagraphBreak(line)) {
+      // Flush any pending text, then push this as its own paragraph
+      if (current) { paragraphs.push(current); current = ''; }
+      paragraphs.push(line);
+      continue;
+    }
+    // Regular text line -- join to current paragraph with a space
+    current = current ? current + ' ' + line : line;
+  }
+  if (current) paragraphs.push(current);
+
+  return paragraphs;
+}
+
 // ── Core split logic ──────────────────────────────────────────────────────────
 
 function isStageDirection(token) {
@@ -490,10 +533,12 @@ function splitScript(rawText, maxLen) {
   const rows = [];
   let lastWasStage = false;
 
-  const rawRaw = rawText.split(/\r?\n/).map(t => cleanText(t)).filter(Boolean);
+  // Step 1: Join soft-wrapped lines into true paragraphs before any processing
+  const paragraphs = joinSoftWraps(rawText);
 
-  for (let pi = 0; pi < rawRaw.length; pi++) {
-    const para = rawRaw[pi];
+  for (const para of paragraphs) {
+    if (!para) continue;
+
     const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Za-z][a-zA-Z'\-]+\.?\s+){0,2}[A-Za-z][a-zA-Z'\-]+\.?)\s*:\s*/g;
     const subParas = [];
     let lastIndex = 0;
@@ -580,9 +625,10 @@ function run() {
   status.className = 'status';
 
   setTimeout(() => {
-    // FIX: Split first on the raw text, then apply cleanup per output row.
-    // Previously cleanup ran on the raw input, causing capitalizeSentenceStarts()
-    // to fire on every hard-wrapped input line rather than true sentence boundaries.
+    // Order of operations:
+    // 1. Join soft-wrapped input lines into paragraphs (inside splitScript)
+    // 2. Split into output rows by sentence/length
+    // 3. Apply undo-caps per output row (lowercase -> re-cap sentence starts -> restore protected words)
     const rows = splitScript(raw, maxLen);
 
     const finalRows = cleanupMode === 'caps'
