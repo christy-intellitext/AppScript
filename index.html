@@ -291,9 +291,6 @@ function setCleanup(mode) {
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 
 const PROTECTED = new Set([
-  // Note: US, USA, and all two-letter state abbreviations are intentionally excluded.
-  // They are indistinguishable from common lowercase words (us, me, in, or, ok, etc.)
-  // after lowercasing. Add them via the "Keep capitalized" field if needed for a specific script.
   'UK','EU','UN','NATO','USSR','ROTC','POW','MIA',
   'FBI','CIA','NSA','DEA','ATF','IRS','TSA','DHS','DOD','DOJ','DOE',
   'EPA','FDA','FCC','FTC','SEC','FEMA','USMC','USAF','USN',
@@ -316,10 +313,6 @@ const PROTECTED = new Set([
   'Nevada','Reno','UNR','UNLV','University','Sandoval','Regent','Regents',
 ]);
 
-// Parse the custom words field.
-// Entries wrapped in parentheses e.g. (Heather Speed) are "phrase-only" --
-// the entire phrase is matched as a unit, so "speed" alone is left untouched.
-// Plain entries like Vikki are matched at any word boundary as before.
 function getCustomWords() {
   const raw = document.getElementById('customWords').value;
   return raw.split(',').map(w => w.trim()).filter(Boolean).map(entry => {
@@ -341,13 +334,14 @@ function fixPronouns(text) {
   return text.replace(/(?<![a-zA-Z])i(?![a-zA-Z])/g, 'I');
 }
 
-// Multi-word phrases that should always be title-cased as a unit in undo-caps mode.
 const PROTECTED_PHRASES = [
   'Nevada System of Higher Education',
   'President Sandoval',
 ];
 
-function applyUndoCaps(text) {
+// Apply undo-caps to a single already-split output line.
+// At this point the line is a true sentence or fragment -- safe to capitalize the start.
+function applyUndoCapsToLine(text) {
   text = text.toLowerCase();
   text = capitalizeSentenceStarts(text);
   text = fixPronouns(text);
@@ -355,7 +349,6 @@ function applyUndoCaps(text) {
     const re = new RegExp(`\\b${word.toLowerCase()}\\b`, 'g');
     text = text.replace(re, word);
   });
-  // Restore protected multi-word phrases as a unit
   PROTECTED_PHRASES.forEach(phrase => {
     const escaped = phrase.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(escaped, 'gi');
@@ -372,11 +365,6 @@ function applyUndoCaps(text) {
       text = text.replace(re, word);
     }
   });
-  return text;
-}
-
-function applyCleanup(text) {
-  if (cleanupMode === 'caps') return applyUndoCaps(text);
   return text;
 }
 
@@ -592,13 +580,20 @@ function run() {
   status.className = 'status';
 
   setTimeout(() => {
-    const cleaned = applyCleanup(raw);
-    const rows = splitScript(cleaned, maxLen);
-    processedRows = rows;
+    // FIX: Split first on the raw text, then apply cleanup per output row.
+    // Previously cleanup ran on the raw input, causing capitalizeSentenceStarts()
+    // to fire on every hard-wrapped input line rather than true sentence boundaries.
+    const rows = splitScript(raw, maxLen);
+
+    const finalRows = cleanupMode === 'caps'
+      ? rows.map(line => applyUndoCapsToLine(line))
+      : rows;
+
+    processedRows = finalRows;
 
     const tbody = document.getElementById('previewBody');
     tbody.innerHTML = '';
-    rows.forEach((line, i) => {
+    finalRows.forEach((line, i) => {
       const tr = document.createElement('tr');
       const td1 = document.createElement('td');
       td1.textContent = i + 1;
@@ -611,10 +606,10 @@ function run() {
       tbody.appendChild(tr);
     });
 
-    document.getElementById('rowCount').textContent = `${rows.length} rows`;
+    document.getElementById('rowCount').textContent = `${finalRows.length} rows`;
     document.getElementById('previewWrap').style.display = '';
     document.getElementById('downloadBtn').disabled = false;
-    status.textContent = `Done — ${rows.length} rows`;
+    status.textContent = `Done — ${finalRows.length} rows`;
     status.className = 'status ok';
   }, 30);
 }
@@ -648,10 +643,6 @@ function downloadExcel() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Script Lines');
   XLSX.writeFile(wb, 'script_lines.xlsx', { cellStyles: true });
-}
-
-function escHtml(t) {
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 document.addEventListener('keydown', e => {
