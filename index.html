@@ -294,7 +294,7 @@ const PROTECTED = new Set([
   'HTML','CSS','API','URL','HTTP','HTTPS','PDF','SQL',
   'GPA','SAT','ACT','AP','IB','PhD','MBA','MD','JD','RN','BS','BA','MS','MA',
   'ACLU','NAACP','YMCA','YWCA','NFL','NBA','MLB','NHL','MLS','NCAA','IOC',
-  'WHO','CDC','NIH','AMA','ABA','IEEE',
+  'CDC','NIH','AMA','ABA','IEEE',
   'CEO','CFO','COO','CTO','VP','HR','PR','LLC','INC','LTD',
   'EST','PST','MST','CST','BC','AD',
   'UNR','UNLV','NSHE',
@@ -512,10 +512,20 @@ function splitScript(rawText, maxLen) {
       }
       if (pending) segments.push({ type: 'text', text: pending.trim() });
 
-      for (const seg of segments) {
+      for (let si = 0; si < segments.length; si++) {
+        const seg = segments[si];
         if (seg.type === 'stage') { rows.push(seg.text); continue; }
 
-        const sentences = splitIntoSentences(seg.text);
+        // If this text segment immediately follows a stage direction, capitalize
+        // the first word -- the stage direction acts as an implicit sentence boundary.
+        const prevSeg = segments[si - 1];
+        const afterStage = prevSeg && prevSeg.type === 'stage';
+        let segText = seg.text;
+        if (afterStage) {
+          segText = segText.replace(/^([a-z])/, c => c.toUpperCase());
+        }
+
+        const sentences = splitIntoSentences(segText);
         for (const sentence of sentences) {
           if (sentence.length > maxLen && sentence.split(' ').length > 5) {
             splitLongLine(sentence, maxLen).forEach(l => rows.push(l));
