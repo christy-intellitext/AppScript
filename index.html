@@ -193,7 +193,7 @@
     </div>
   </div>
 
-  <footer>University of Nevada, Reno &mdash; Commencement Tools</footer>
+  <footer>Intellitext LLC</footer>
 
 </div>
 
@@ -252,11 +252,17 @@ function splitLongLine(text, maxLen) {
     if (parts.every(p => p.length <= maxLen)) return parts;
   }
 
-  // 2. Try comma splits — last comma where both sides fit and right side has 3+ words
+  // 2. Try comma splits — but never split on a comma inside quotation marks
+  // Build a list of comma positions that are outside any quoted section
   const commaPositions = [];
+  let inQuote = false;
   for (let i = 0; i < text.length; i++) {
-    if (text[i] === ',' && i < text.length - 1) commaPositions.push(i);
+    if (text[i] === '"') inQuote = !inQuote;
+    if (text[i] === ',' && !inQuote && i < text.length - 1) {
+      commaPositions.push(i);
+    }
   }
+
   if (commaPositions.length) {
     let bestSplit = null;
     for (const pos of commaPositions) {
