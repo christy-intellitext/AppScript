@@ -223,7 +223,7 @@
 <div class="container">
 
   <header>
-    <h1>ScriptFeed Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v2.1</span></h1>
+    <h1>ScriptFeed Line Splitter</h1>
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
@@ -242,9 +242,9 @@
     </div>
 
     <div class="options-row" id="customWordsRow" style="display:none; flex-direction: column; align-items: flex-start; gap: 8px;">
-      <span class="option-label">Capitalization exceptions</span>
+      <span class="option-label">Fix Capitalization</span>
       <input type="text" id="customWords" placeholder="e.g., Transcriber, (Christy Joy), (TypeWell Transcriber)" style="width:100%;">
-      <span class="hint">Comma-separated list of words that should be capitalized. Words that should only be capitalized when in an exact matching phrase should be put in parentheses.</span>
+      <span class="hint">Comma-separated words that should be capitalized. Exact matching phrases should be put in parentheses.</span>
     </div>
 
     <div class="controls">
@@ -271,7 +271,7 @@
     </div>
   </div>
 
-  <footer>Intellitext LLC</footer>
+  <footer>For authorized use only &nbsp;|&nbsp; Intellitext LLC 2026 &nbsp;|&nbsp; v2.1</footer>
 
 </div>
 
@@ -365,11 +365,9 @@ function applyUndoCaps(text) {
     if (!word) return;
     const escaped = word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (phraseOnly) {
-      // Match only the exact multi-word phrase, case-insensitive
       const re = new RegExp(escaped, 'gi');
       text = text.replace(re, word);
     } else {
-      // Match at any word boundary
       const re = new RegExp('\\b' + escaped + '\\b', 'gi');
       text = text.replace(re, word);
     }
@@ -396,18 +394,12 @@ function cleanText(t) {
     .replace(/[\u201C\u201D\u201E]/g, '"')
     .replace(/\u2014/g, ' -- ').replace(/\u2013/g, '-')
     .replace(/\u2026/g, '...')
-    .replace(/^[\u2022\u2023\u2043\u2219\u25AA\u25CF\u25E6\u30FB\uFE45\uFE46\u2027•\-\*]\s*/, '') // strip leading bullets
+    .replace(/^[\u2022\u2023\u2043\u2219\u25AA\u25CF\u25E6\u30FB\uFE45\uFE46\u2027•\-\*]\s*/, '')
     .replace(/[ \t]+/g, ' ').trim();
 }
 
-// ── FIX 1: isSentenceEnd now strips trailing closing punctuation ──────────────
-// Previously, words ending in ." or ?" or !) etc. would fail the /[.!?]$/ test
-// because the closing quote/paren sat after the period. We now strip those
-// trailing characters before checking, so "himself." and 'himself."' both
-// correctly register as sentence-ending words.
 function isSentenceEnd(words, idx) {
   const word = words[idx];
-  // Strip trailing closing punctuation (quotes, parens, brackets) before checking
   const stripped = word.replace(/['")\]]+$/, '');
   if (!/[.!?]$/.test(stripped)) return false;
   const stem = stripped.replace(/[.!?]+$/, '');
@@ -489,25 +481,18 @@ function splitLongLine(text, maxLen) {
 
 // ── Core split logic ──────────────────────────────────────────────────────────
 
-// ── Stage direction detection ─────────────────────────────────────────────────
-// Handles both [square bracket] and (parenthetical) forms.
-// Requires meaningful content -- short lowercase fragments like [ing] or (s)
-// are left in place as part of the text rather than extracted as stage directions.
-// Square bracket form: must be 2+ chars and either all-caps or capitalized + 4+ chars.
-// Parenthetical form: must be 3+ chars. Since parentheticals in scripts are almost
-// always stage directions regardless of case, we accept any content of sufficient length.
 function isStageDirection(token) {
   const isParens = token.startsWith('(') && token.endsWith(')');
   const isBracket = token.startsWith('[') && token.endsWith(']');
   const inner = token.slice(1, -1).trim();
 
   if (isParens) {
-    return inner.length >= 3; // (lead applause), (laughter), (pause) -- all qualify
+    return inner.length >= 3;
   }
   if (isBracket) {
     if (inner.length < 2) return false;
-    if (/^[A-Z][A-Z\s\d]+$/.test(inner)) return true;  // all-caps: [APPLAUSE], [MUSIC UP]
-    if (/^[A-Z]/.test(inner) && inner.length >= 4) return true; // capitalized: [Laughter]
+    if (/^[A-Z][A-Z\s\d]+$/.test(inner)) return true;
+    if (/^[A-Z]/.test(inner) && inner.length >= 4) return true;
     return false;
   }
   return false;
@@ -515,27 +500,12 @@ function isStageDirection(token) {
 
 function splitScript(rawText, maxLen) {
   const rows = [];
-  // Track whether the last thing pushed was a stage direction so the
-  // very next text row (even across subPara boundaries) gets capitalized.
   let lastWasStage = false;
 
-  // Split into raw paragraphs first, before any cleanup, so we can detect
-  // speaker labels (Name:) on the original casing. Cleanup is applied per-segment
-  // below, after speakers have been extracted.
-  const rawParagraphs = rawText.split(/\r?\n/).map(t => cleanText(t)).filter(Boolean);
-
-  // Speaker regex works on raw/original-cased text. We also accept all-lowercase
-  // or title-case followed by colon so that "Heather speed:" is caught even after
-  // undo-caps lowercasing. The key insight: we run speaker detection on the
-  // pre-cleanup paragraph, then apply cleanup only to the prose remainder.
-  // To handle this, we store the raw paragraph alongside the cleaned one.
   const rawRaw = rawText.split(/\r?\n/).map(t => cleanText(t)).filter(Boolean);
 
   for (let pi = 0; pi < rawRaw.length; pi++) {
     const para = rawRaw[pi];
-    // Speaker pattern: matches "Word Word:" or "Dr. Word:" in any casing
-    // We now also match lines that are ENTIRELY a name+colon (common in scripts)
-    // by allowing any word-character sequence, not just title-cased ones.
     const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Za-z][a-zA-Z'\-]+\.?\s+){0,2}[A-Za-z][a-zA-Z'\-]+\.?)\s*:\s*/g;
     const subParas = [];
     let lastIndex = 0;
@@ -545,7 +515,6 @@ function splitScript(rawText, maxLen) {
     while ((match = speakerSplitRe.exec(para)) !== null) {
       const before = para.slice(lastIndex, match.index).trim();
       if (before) subParas.push({ type: 'text', text: before });
-      // Title-case the speaker name regardless of source casing
       const speakerRaw = match[1].trim();
       const speakerTitled = speakerRaw.replace(/\b(\w)/g, c => c.toUpperCase());
       subParas.push({ type: 'speaker', text: speakerTitled + ':' });
@@ -557,7 +526,6 @@ function splitScript(rawText, maxLen) {
     for (const sub of subParas) {
       if (sub.type === 'speaker') { rows.push(sub.text); lastWasStage = true; continue; }
 
-      // Split on both [bracket] and (parenthetical) tokens.
       const tokens = sub.text.split(/((?:^|(?<=\s))(?:\[[^\]]*\]|\([^)]*\))(?=\s|$))/);
       const segments = [];
       let pending = '';
@@ -585,9 +553,6 @@ function splitScript(rawText, maxLen) {
           continue;
         }
 
-        // Capitalize the first word if the previous output was a stage direction --
-        // works both within a subPara (via segments) and across subPara boundaries
-        // (via the lastWasStage flag).
         const prevSeg = segments[si - 1];
         const afterStage = lastWasStage || (prevSeg && prevSeg.type === 'stage');
         let segText = seg.text;
@@ -657,12 +622,9 @@ function run() {
 // ── Excel export ──────────────────────────────────────────────────────────────
 
 function downloadExcel() {
-  // Read from the DOM so any edits made in the preview are captured
   const editedRows = [...document.querySelectorAll('#previewBody tr')].map(tr => tr.cells[1].textContent);
   if (!editedRows.length) return;
 
-  // Build sheet data:
-  // Col A = row number (bold), Col B = line text, Col C = TRIM(A&" "&B) formula
   const wsData = [['#', 'Line', 'Combined']];
   editedRows.forEach((line, i) => {
     wsData.push([i + 1, line, { f: `TRIM(A${i+2}&" "&B${i+2})` }]);
@@ -670,16 +632,12 @@ function downloadExcel() {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // Bold the header row and all cells in column A
   const boldStyle = { font: { bold: true } };
   const range = XLSX.utils.decode_range(ws['!ref']);
   for (let R = 0; R <= range.e.r; R++) {
     const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
-    if (ws[cellA]) {
-      ws[cellA].s = boldStyle;
-    }
+    if (ws[cellA]) ws[cellA].s = boldStyle;
   }
-  // Also bold the header row across all columns
   for (let C = 0; C <= 2; C++) {
     const cell = XLSX.utils.encode_cell({ r: 0, c: C });
     if (ws[cell]) ws[cell].s = boldStyle;
@@ -687,7 +645,6 @@ function downloadExcel() {
 
   ws['!cols'] = [{ wch: 6 }, { wch: 80 }, { wch: 90 }];
 
-  // Use XLSX with cellStyles enabled
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Script Lines');
   XLSX.writeFile(wb, 'script_lines.xlsx', { cellStyles: true });
