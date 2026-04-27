@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Script Line Splitter v1.5</title>
+<title>Script Line Splitter v1.7</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -207,6 +207,13 @@
     line-height: 1.6;
   }
   tbody td:first-child { text-align: center; color: #bbb; font-size: 11px; width: 56px; }
+  tbody td[contenteditable] { outline: none; cursor: text; }
+  tbody td[contenteditable]:focus {
+    background: #fffef5 !important;
+    box-shadow: inset 0 0 0 1px #d4c97a;
+    border-radius: 2px;
+  }
+  tbody td[contenteditable]:hover:not(:focus) { background: #f5f4ee !important; }
   tbody tr:last-child td { border-bottom: none; }
 
   footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
@@ -216,7 +223,7 @@
 <div class="container">
 
   <header>
-    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v1.5</span></h1>
+    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v1.7</span></h1>
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
@@ -306,7 +313,7 @@ const PROTECTED = new Set([
   'January','February','March','April','May','June','July',
   'August','September','October','November','December',
   'American','Americans','America','United','States','God','English',
-  'Nevada','Reno','UNR','UNLV',
+  'Nevada','Reno','UNR','UNLV','University',
 ]);
 
 function getCustomWords() {
@@ -482,10 +489,24 @@ function splitScript(rawText, maxLen) {
   // very next text row (even across subPara boundaries) gets capitalized.
   let lastWasStage = false;
 
-  const paragraphs = rawText.split(/\r?\n/).map(cleanText).filter(Boolean);
+  // Split into raw paragraphs first, before any cleanup, so we can detect
+  // speaker labels (Name:) on the original casing. Cleanup is applied per-segment
+  // below, after speakers have been extracted.
+  const rawParagraphs = rawText.split(/\r?\n/).map(t => cleanText(t)).filter(Boolean);
 
-  for (const para of paragraphs) {
-    const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Z][a-zA-Z'\-]+\.?\s+){0,2}[A-Z][a-zA-Z'\-]+\.?)\s*:\s*/g;
+  // Speaker regex works on raw/original-cased text. We also accept all-lowercase
+  // or title-case followed by colon so that "Heather speed:" is caught even after
+  // undo-caps lowercasing. The key insight: we run speaker detection on the
+  // pre-cleanup paragraph, then apply cleanup only to the prose remainder.
+  // To handle this, we store the raw paragraph alongside the cleaned one.
+  const rawRaw = rawText.split(/\r?\n/).map(t => cleanText(t)).filter(Boolean);
+
+  for (let pi = 0; pi < rawRaw.length; pi++) {
+    const para = rawRaw[pi];
+    // Speaker pattern: matches "Word Word:" or "Dr. Word:" in any casing
+    // We now also match lines that are ENTIRELY a name+colon (common in scripts)
+    // by allowing any word-character sequence, not just title-cased ones.
+    const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Za-z][a-zA-Z'\-]+\.?\s+){0,2}[A-Za-z][a-zA-Z'\-]+\.?)\s*:\s*/g;
     const subParas = [];
     let lastIndex = 0;
     let match;
@@ -494,14 +515,17 @@ function splitScript(rawText, maxLen) {
     while ((match = speakerSplitRe.exec(para)) !== null) {
       const before = para.slice(lastIndex, match.index).trim();
       if (before) subParas.push({ type: 'text', text: before });
-      subParas.push({ type: 'speaker', text: match[1].trim() + ':' });
+      // Title-case the speaker name regardless of source casing
+      const speakerRaw = match[1].trim();
+      const speakerTitled = speakerRaw.replace(/\b(\w)/g, c => c.toUpperCase());
+      subParas.push({ type: 'speaker', text: speakerTitled + ':' });
       lastIndex = match.index + match[0].length;
     }
     const remaining = para.slice(lastIndex).trim();
     if (remaining) subParas.push({ type: 'text', text: remaining });
 
     for (const sub of subParas) {
-      if (sub.type === 'speaker') { rows.push(sub.text); lastWasStage = false; continue; }
+      if (sub.type === 'speaker') { rows.push(sub.text); lastWasStage = true; continue; }
 
       // Split on both [bracket] and (parenthetical) tokens.
       const tokens = sub.text.split(/((?:^|(?<=\s))(?:\[[^\]]*\]|\([^)]*\))(?=\s|$))/);
@@ -581,7 +605,14 @@ function run() {
     tbody.innerHTML = '';
     rows.forEach((line, i) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i + 1}</td><td>${escHtml(line)}</td>`;
+      const td1 = document.createElement('td');
+      td1.textContent = i + 1;
+      const td2 = document.createElement('td');
+      td2.contentEditable = 'true';
+      td2.textContent = line;
+      td2.setAttribute('spellcheck', 'false');
+      tr.appendChild(td1);
+      tr.appendChild(td2);
       tbody.appendChild(tr);
     });
 
@@ -596,8 +627,10 @@ function run() {
 // ── Excel export ──────────────────────────────────────────────────────────────
 
 function downloadExcel() {
-  if (!processedRows.length) return;
-  const wsData = [['#', 'Line'], ...processedRows.map((r, i) => [i + 1, r])];
+  // Read from the DOM so any edits made in the preview are captured
+  const editedRows = [...document.querySelectorAll('#previewBody tr')].map(tr => tr.cells[1].textContent);
+  if (!editedRows.length) return;
+  const wsData = [['#', 'Line'], ...editedRows.map((r, i) => [i + 1, r])];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   ws['!cols'] = [{ wch: 6 }, { wch: 80 }];
   const wb = XLSX.utils.book_new();
