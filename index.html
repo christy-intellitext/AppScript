@@ -428,12 +428,14 @@ function splitLongLine(text, maxLen) {
     if (text[i] === ',' && !inQuote && i < text.length - 1) commaPositions.push(i);
   }
 
-  if (commaPositions.length) {
+  // 2. Only attempt comma splits if the line is meaningfully over the limit (more than 15 chars)
+  // A line that's just slightly over is better left intact than split at an awkward comma
+  if (text.length > maxLen + 15 && commaPositions.length) {
     let bestSplit = null;
     for (const pos of commaPositions) {
       const left = text.slice(0, pos + 1).trim();
       const right = text.slice(pos + 1).trim();
-      if (left.length <= maxLen && right.length > 0 && right.split(' ').length >= 3) {
+    if (left.length <= maxLen && right.length > 0 && right.split(' ').length >= 3 && left.split(' ').length >= 6) {
         bestSplit = { left, right };
       }
     }
