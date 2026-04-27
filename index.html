@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Script Line Splitter</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Comfortaa', sans-serif;
     background: #f5f4f0;
     color: #1a1a1a;
     min-height: 100vh;
@@ -27,6 +27,15 @@
   header { margin-bottom: 8px; }
   h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #777; }
+
+  .step-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 12px;
+  }
 
   .card {
     background: #fff;
@@ -50,9 +59,9 @@
 
   textarea {
     width: 100%;
-    height: 220px;
+    height: 200px;
     padding: 12px 14px;
-    font-family: 'DM Mono', monospace;
+    font-family: 'Comfortaa', sans-serif;
     font-size: 12px;
     line-height: 1.75;
     background: #fafaf8;
@@ -66,13 +75,19 @@
   textarea:focus { border-color: #aaa; }
   textarea::placeholder { color: #bbb; }
 
+  textarea.editable {
+    background: #fffef5;
+    border-color: #d4c97a;
+  }
+  textarea.editable:focus { border-color: #b5a830; }
+
   .controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; }
 
   input[type=number] {
     width: 90px;
     padding: 9px 12px;
-    font-family: 'DM Mono', monospace;
+    font-family: 'Comfortaa', sans-serif;
     font-size: 13px;
     background: #fafaf8;
     border: 1px solid #e4e2dc;
@@ -85,7 +100,7 @@
 
   .btn {
     padding: 9px 20px;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Comfortaa', sans-serif;
     font-size: 13px;
     font-weight: 600;
     border: none;
@@ -102,9 +117,55 @@
   .btn-secondary:hover:not(:disabled) { background: #e8e7e0; }
   .btn-secondary:disabled { opacity: .35; cursor: default; }
 
-  .status { font-size: 12px; font-family: 'DM Mono', monospace; color: #888; align-self: center; }
+  .status { font-size: 12px; font-family: 'Comfortaa', sans-serif; color: #888; align-self: center; }
   .status.ok { color: #2d7a3a; }
   .status.err { color: #b53a2f; }
+
+  .options-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: #fafaf8;
+    border: 1px solid #e4e2dc;
+    border-radius: 8px;
+  }
+
+  .option-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  .toggle-btn {
+    display: flex;
+    border: 1px solid #e4e2dc;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .toggle-btn button {
+    padding: 5px 13px;
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    background: #fff;
+    color: #888;
+    cursor: pointer;
+    transition: background .1s, color .1s;
+  }
+
+  .toggle-btn button.active { background: #1a1a1a; color: #fff; }
+  .toggle-btn button + button { border-left: 1px solid #e4e2dc; }
+
+  .hint {
+    font-size: 11px;
+    color: #aaa;
+    font-style: italic;
+  }
 
   .preview-wrap { border: 1px solid #e4e2dc; border-radius: 8px; overflow: hidden; }
 
@@ -124,7 +185,7 @@
 
   .preview-table-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
 
-  table { width: 100%; border-collapse: collapse; font-family: 'DM Mono', monospace; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-family: 'Comfortaa', sans-serif; font-size: 12px; }
 
   thead th {
     position: sticky;
@@ -154,45 +215,21 @@
 
   footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
 
-  .options-row {
+  .divider {
     display: flex;
-    gap: 12px;
     align-items: center;
-    padding: 10px 14px;
-    background: #fafaf8;
-    border: 1px solid #e4e2dc;
-    border-radius: 8px;
-  }
-
-  .option-label {
+    gap: 12px;
+    color: #ccc;
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .06em;
+    letter-spacing: .08em;
     text-transform: uppercase;
-    color: #888;
   }
-
-  .toggle-btn {
-    display: flex;
-    border: 1px solid #e4e2dc;
-    border-radius: 6px;
-    overflow: hidden;
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e4e2dc;
   }
-
-  .toggle-btn button {
-    padding: 5px 13px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    border: none;
-    background: #fff;
-    color: #888;
-    cursor: pointer;
-    transition: background .1s, color .1s;
-  }
-
-  .toggle-btn button.active { background: #1a1a1a; color: #fff; }
-  .toggle-btn button + button { border-left: 1px solid #e4e2dc; }
 </style>
 </head>
 <body>
@@ -203,41 +240,65 @@
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
-  <div class="card">
-    <div>
-      <label>Paste script text</label>
-      <textarea id="input" placeholder="Paste your script here...&#10;&#10;Tip: Ctrl+Enter to process."></textarea>
-    </div>
+  <!-- Step 1 -->
+  <div>
+    <div class="step-label">Step 1 — Paste &amp; clean</div>
+    <div class="card">
+      <div>
+        <label>Paste script text</label>
+        <textarea id="input" placeholder="Paste your script here..."></textarea>
+      </div>
 
-    <div class="options-row">
-      <span class="option-label">Cleanup</span>
-      <div class="toggle-btn">
-        <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
-        <button id="cleanup-spell" onclick="setCleanup('spell')">Spell check</button>
-        <button id="cleanup-caps" onclick="setCleanup('caps')">Undo all-caps</button>
+      <div class="options-row">
+        <span class="option-label">Cleanup</span>
+        <div class="toggle-btn">
+          <button id="cleanup-off" class="active" onclick="setCleanup('off')">Off</button>
+          <button id="cleanup-spell" onclick="setCleanup('spell')">Spell check</button>
+          <button id="cleanup-caps" onclick="setCleanup('caps')">Undo all-caps</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="runCleanup()">Clean text</button>
+        <span class="status" id="cleanStatus"></span>
+      </div>
+
+      <!-- Editable cleaned text — hidden until cleanup runs -->
+      <div id="cleanedWrap" style="display:none">
+        <label>Cleaned text — review and edit before processing</label>
+        <textarea id="cleaned" class="editable" placeholder="Cleaned text will appear here..."></textarea>
+        <p class="hint">You can manually fix anything before processing below.</p>
       </div>
     </div>
+  </div>
 
-    <div class="controls">
-      <div class="field">
-        <label>Max chars / line</label>
-        <input type="number" id="maxLen" value="150" min="40" max="500">
-      </div>
-      <button class="btn btn-primary" id="processBtn" onclick="run()">Process script</button>
-      <button class="btn btn-secondary" id="downloadBtn" onclick="downloadExcel()" disabled>Download .xlsx</button>
-      <span class="status" id="status"></span>
-    </div>
+  <div class="divider">Step 2</div>
 
-    <div class="preview-wrap" id="previewWrap" style="display:none">
-      <div class="preview-header">
-        <span>Preview</span>
-        <span id="rowCount"></span>
+  <!-- Step 2 -->
+  <div>
+    <div class="step-label">Step 2 — Split &amp; download</div>
+    <div class="card">
+      <div class="controls">
+        <div class="field">
+          <label>Max chars / line</label>
+          <input type="number" id="maxLen" value="150" min="40" max="500">
+        </div>
+        <button class="btn btn-primary" id="processBtn" onclick="run()">Process script</button>
+        <button class="btn btn-secondary" id="downloadBtn" onclick="downloadExcel()" disabled>Download .xlsx</button>
+        <span class="status" id="status"></span>
       </div>
-      <div class="preview-table-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Line</th></tr></thead>
-          <tbody id="previewBody"></tbody>
-        </table>
+
+      <div class="preview-wrap" id="previewWrap" style="display:none">
+        <div class="preview-header">
+          <span>Preview</span>
+          <span id="rowCount"></span>
+        </div>
+        <div class="preview-table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Line</th></tr></thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -249,7 +310,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let processedRows = [];
-
 let cleanupMode = 'off';
 
 function setCleanup(mode) {
@@ -259,8 +319,8 @@ function setCleanup(mode) {
   });
 }
 
-// Known misspellings / contraction fixes
-// Only safe, unambiguous corrections — no context-dependent words like "its"
+// ── Cleanup logic ─────────────────────────────────────────────────────────────
+
 const SPELLING_FIXES = {
   'dont'    : "don't",   'doesnt'  : "doesn't", 'didnt'   : "didn't",
   'cant'    : "can't",   'wont'    : "won't",    'wouldnt' : "wouldn't",
@@ -277,22 +337,17 @@ const SPELLING_FIXES = {
   'im'      : "I'm",
 };
 
-// Capitalize the first letter after sentence-ending punctuation and at start of text
 function capitalizeSentenceStarts(text) {
-  // Start of text
   text = text.replace(/^([a-z])/, c => c.toUpperCase());
-  // After . ! ? followed by whitespace
   text = text.replace(/([.!?]['")\]]*)\s+([a-z])/g, (m, punct, letter) => punct + ' ' + letter.toUpperCase());
   return text;
 }
 
-// Fix standalone lowercase "i" as pronoun
 function fixPronouns(text) {
   return text.replace(/(?<![a-zA-Z])i(?![a-zA-Z])/g, 'I');
 }
 
 function applySpellCheck(text) {
-  // Fix known misspellings/contractions (only words without apostrophe already)
   text = text.replace(/\b([a-zA-Z]+)\b/g, word => {
     if (word.includes("'")) return word;
     const fix = SPELLING_FIXES[word.toLowerCase()];
@@ -304,9 +359,7 @@ function applySpellCheck(text) {
 }
 
 function applyUndoCaps(text) {
-  // Step 1: convert everything to lowercase
   text = text.toLowerCase();
-  // Step 2: capitalize sentence starts and "I"
   text = capitalizeSentenceStarts(text);
   text = fixPronouns(text);
   return text;
@@ -316,6 +369,28 @@ function applyCleanup(text) {
   if (cleanupMode === 'spell') return applySpellCheck(text);
   if (cleanupMode === 'caps')  return applyUndoCaps(text);
   return text;
+}
+
+function runCleanup() {
+  const raw = document.getElementById('input').value;
+  const cleanStatus = document.getElementById('cleanStatus');
+
+  if (!raw.trim()) {
+    cleanStatus.textContent = 'Nothing to clean.';
+    cleanStatus.className = 'status err';
+    return;
+  }
+
+  const result = applyCleanup(raw);
+  document.getElementById('cleaned').value = result;
+  document.getElementById('cleanedWrap').style.display = '';
+
+  if (cleanupMode === 'off') {
+    cleanStatus.textContent = 'No cleanup applied — text copied as-is.';
+  } else {
+    cleanStatus.textContent = 'Done — review and edit below.';
+  }
+  cleanStatus.className = 'status ok';
 }
 
 // ── Text helpers ──────────────────────────────────────────────────────────────
@@ -350,7 +425,6 @@ function splitIntoSentences(text) {
   for (let i = 0; i < words.length; i++) {
     current.push(words[i]);
     const nextWord = words[i + 1];
-    // Split if sentence ends and next word is capitalized, OR if it's the last word
     if (isSentenceEnd(words, i) && (!nextWord || /^[A-Z\[]/.test(nextWord))) {
       sentences.push(current.join(' '));
       current = [];
@@ -363,14 +437,11 @@ function splitIntoSentences(text) {
 function splitLongLine(text, maxLen) {
   if (text.length <= maxLen) return [text];
 
-  // 1. Try em-dash natural breaks
   if (text.includes(' -- ')) {
     const parts = text.split(' -- ').map(p => p.trim()).filter(Boolean);
     if (parts.every(p => p.length <= maxLen)) return parts;
   }
 
-  // 2. Try comma splits — but never split on a comma inside quotation marks
-  // Build a list of comma positions that are outside any quoted section
   const commaPositions = [];
   let inQuote = false;
   for (let i = 0; i < text.length; i++) {
@@ -397,7 +468,6 @@ function splitLongLine(text, maxLen) {
     }
   }
 
-  // 3. Word-wrap fallback
   const words = text.split(' ');
   const lines = [];
   let current = '';
@@ -412,7 +482,6 @@ function splitLongLine(text, maxLen) {
   }
   if (current) lines.push(current);
 
-  // Don't split if last chunk is a single word and overflow is minor
   if (lines.length > 1) {
     const last = lines[lines.length - 1];
     const overflow = text.length - maxLen;
@@ -429,7 +498,6 @@ function splitScript(rawText, maxLen) {
   const paragraphs = rawText.split(/\r?\n/).map(cleanText).filter(Boolean);
 
   for (const para of paragraphs) {
-    // Detect speaker IDs inline (e.g. "Dan Morgan: Good evening...")
     const speakerSplitRe = /((?:(?:Dr|Mr|Mrs|Ms|Prof|Rev|Hon|Gen|Col|Capt|Lt|Sgt|Gov|Sen|Rep)\.\s+)?(?:[A-Z][a-zA-Z'\-]+\.?\s+){0,2}[A-Z][a-zA-Z'\-]+\.?)\s*:\s*/g;
     const subParas = [];
     let lastIndex = 0;
@@ -448,8 +516,6 @@ function splitScript(rawText, maxLen) {
     for (const sub of subParas) {
       if (sub.type === 'speaker') { rows.push(sub.text); continue; }
 
-      // Split on bracketed stage directions only when standalone (not mid-word)
-      // Matches [Applause] but NOT find[ing]
       const segments = sub.text.split(/((?:^|(?<=\s))\[[^\]]*\](?=\s|$))/);
       for (const seg of segments) {
         const s = seg.trim();
@@ -473,7 +539,13 @@ function splitScript(rawText, maxLen) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function run() {
-  const raw = document.getElementById('input').value;
+  // Use cleaned text if available, otherwise fall back to raw input
+  const cleanedEl = document.getElementById('cleaned');
+  const cleanedWrap = document.getElementById('cleanedWrap');
+  const raw = cleanedWrap.style.display !== 'none' && cleanedEl.value.trim()
+    ? cleanedEl.value
+    : document.getElementById('input').value;
+
   const maxLen = parseInt(document.getElementById('maxLen').value) || 150;
   const status = document.getElementById('status');
 
@@ -487,8 +559,7 @@ function run() {
   status.className = 'status';
 
   setTimeout(() => {
-    const cleaned = applyCleanup(raw);
-    const rows = splitScript(cleaned, maxLen);
+    const rows = splitScript(raw, maxLen);
     processedRows = rows;
 
     const tbody = document.getElementById('previewBody');
