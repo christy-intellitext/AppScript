@@ -283,44 +283,29 @@ function setCleanup(mode) {
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 
-// Always re-capitalize these after lowercasing
 const PROTECTED = new Set([
-  // Common acronyms — government / military
   'USA','US','UK','EU','UN','NATO','USSR','ROTC','POW','MIA',
   'FBI','CIA','NSA','DEA','ATF','IRS','TSA','DHS','DOD','DOJ','DOE',
   'EPA','FDA','FCC','FTC','SEC','FEMA','USMC','USAF','USN',
-  // US state abbreviations
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
   'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
   'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
   'VA','WA','WV','WI','WY','DC',
-  // Science / tech
   'NASA','STEM','AI','IT','DNA','RNA','GPS','USB','CPU','GPU','RAM',
   'HTML','CSS','API','URL','HTTP','HTTPS','PDF','SQL',
-  // Education
   'GPA','SAT','ACT','AP','IB','PhD','MBA','MD','JD','RN','BS','BA','MS','MA',
-  // Organizations / sports
   'ACLU','NAACP','YMCA','YWCA','NFL','NBA','MLB','NHL','MLS','NCAA','IOC',
   'WHO','CDC','NIH','AMA','ABA','IEEE',
-  // Business / professional
   'CEO','CFO','COO','CTO','VP','HR','PR','LLC','INC','LTD',
-  // Time / general
   'EST','PST','MST','CST','BC','AD',
-  // Nevada / UNR specific
   'UNR','UNLV','NSHE','NV',
-  // Religious
   'LDS','BC',
-  // Other
   'LGBTQ','HVAC','WiFi',
-  // Titles
   'Dr','Mr','Mrs','Ms','Prof','Rev','Hon','Gov','Sen','Rep',
   'Gen','Col','Capt','Lt','Sgt','Cmdr','Adm','Pres',
-  // Days
   'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
-  // Months
   'January','February','March','April','May','June','July',
   'August','September','October','November','December',
-  // Common proper nouns
   'American','Americans','America','United','States','God','English',
   'Nevada','Reno','UNR','UNLV',
 ]);
@@ -331,10 +316,7 @@ function getCustomWords() {
 }
 
 function capitalizeSentenceStarts(text) {
-  // Capitalize first character of the whole text
   text = text.replace(/^([a-z])/, c => c.toUpperCase());
-  // Capitalize first letter after sentence-ending punctuation and whitespace
-  // But only when it follows actual punctuation, not mid-sentence
   text = text.replace(/([.!?]['")\]]*)\s+([a-z])/g, (m, punct, letter) => punct + ' ' + letter.toUpperCase());
   return text;
 }
@@ -344,26 +326,18 @@ function fixPronouns(text) {
 }
 
 function applyUndoCaps(text) {
-  // Step 1: lowercase everything
   text = text.toLowerCase();
-
-  // Step 2: re-capitalize sentence starts and I
   text = capitalizeSentenceStarts(text);
   text = fixPronouns(text);
-
-  // Step 3: restore hardcoded protected words
   PROTECTED.forEach(word => {
     const re = new RegExp(`\\b${word.toLowerCase()}\\b`, 'g');
     text = text.replace(re, word);
   });
-
-  // Step 4: restore custom words entered by user
   getCustomWords().forEach(word => {
     if (!word) return;
     const re = new RegExp(`\\b${word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
     text = text.replace(re, word);
   });
-
   return text;
 }
 
@@ -388,10 +362,17 @@ function cleanText(t) {
     .replace(/\u2026/g, '...').replace(/[ \t]+/g, ' ').trim();
 }
 
+// ── FIX 1: isSentenceEnd now strips trailing closing punctuation ──────────────
+// Previously, words ending in ." or ?" or !) etc. would fail the /[.!?]$/ test
+// because the closing quote/paren sat after the period. We now strip those
+// trailing characters before checking, so "himself." and 'himself."' both
+// correctly register as sentence-ending words.
 function isSentenceEnd(words, idx) {
   const word = words[idx];
-  if (!/[.!?]$/.test(word)) return false;
-  const stem = word.replace(/[.!?]+$/, '');
+  // Strip trailing closing punctuation (quotes, parens, brackets) before checking
+  const stripped = word.replace(/['")\]]+$/, '');
+  if (!/[.!?]$/.test(stripped)) return false;
+  const stem = stripped.replace(/[.!?]+$/, '');
   if (ABBREVS.has(stem)) return false;
   if (/^[A-Z]$/.test(stem)) return false;
   return true;
@@ -428,14 +409,12 @@ function splitLongLine(text, maxLen) {
     if (text[i] === ',' && !inQuote && i < text.length - 1) commaPositions.push(i);
   }
 
-  // 2. Only attempt comma splits if the line is meaningfully over the limit (more than 15 chars)
-  // A line that's just slightly over is better left intact than split at an awkward comma
   if (text.length > maxLen + 15 && commaPositions.length) {
     let bestSplit = null;
     for (const pos of commaPositions) {
       const left = text.slice(0, pos + 1).trim();
       const right = text.slice(pos + 1).trim();
-    if (left.length <= maxLen && right.length > 0 && right.split(' ').length >= 3 && left.split(' ').length >= 6) {
+      if (left.length <= maxLen && right.length > 0 && right.split(' ').length >= 3 && left.split(' ').length >= 6) {
         bestSplit = { left, right };
       }
     }
@@ -472,6 +451,22 @@ function splitLongLine(text, maxLen) {
 
 // ── Core split logic ──────────────────────────────────────────────────────────
 
+// ── FIX 2: Stage direction regex now requires meaningful content ──────────────
+// Previously, ANY [bracketed] token was treated as a stage direction, which
+// caused mid-word line-break artifacts like [ing] or [ed] to be extracted as
+// their own rows, splitting quoted sentences into fragments.
+// The new regex requires the bracket content to be at least 2 characters long
+// AND either all-uppercase (true stage directions like [APPLAUSE]) OR starting
+// with an uppercase letter (like [Laughter], [Music begins]). Short lowercase
+// fragments like [ing], [s], [ly] are left in place as part of the text.
+function isStageDirection(token) {
+  const inner = token.slice(1, -1); // strip [ and ]
+  if (inner.length < 2) return false;
+  if (/^[A-Z][A-Z\s\d]+$/.test(inner)) return true;  // all-caps: [APPLAUSE], [MUSIC UP]
+  if (/^[A-Z]/.test(inner) && inner.length >= 4) return true; // capitalized and substantial: [Laughter]
+  return false;
+}
+
 function splitScript(rawText, maxLen) {
   const rows = [];
   const paragraphs = rawText.split(/\r?\n/).map(cleanText).filter(Boolean);
@@ -495,13 +490,33 @@ function splitScript(rawText, maxLen) {
     for (const sub of subParas) {
       if (sub.type === 'speaker') { rows.push(sub.text); continue; }
 
-      const segments = sub.text.split(/((?:^|(?<=\s))\[[^\]]*\](?=\s|$))/);
-      for (const seg of segments) {
-        const s = seg.trim();
-        if (!s) continue;
-        if (/^\[.*\]$/.test(s)) { rows.push(s); continue; }
+      // Split on bracket tokens, but only treat them as stage directions
+      // if they pass the isStageDirection() check. Ones that don't pass
+      // are left joined with surrounding text rather than extracted.
+      const tokens = sub.text.split(/((?:^|(?<=\s))\[[^\]]*\](?=\s|$))/);
+      const segments = [];
+      let pending = '';
+      for (const tok of tokens) {
+        const t = tok.trim();
+        if (!t) continue;
+        if (/^\[.*\]$/.test(t)) {
+          if (isStageDirection(t)) {
+            if (pending) { segments.push({ type: 'text', text: pending.trim() }); pending = ''; }
+            segments.push({ type: 'stage', text: t });
+          } else {
+            // Not a real stage direction -- re-attach to surrounding text
+            pending += (pending ? ' ' : '') + t;
+          }
+        } else {
+          pending += (pending ? ' ' : '') + t;
+        }
+      }
+      if (pending) segments.push({ type: 'text', text: pending.trim() });
 
-        const sentences = splitIntoSentences(s);
+      for (const seg of segments) {
+        if (seg.type === 'stage') { rows.push(seg.text); continue; }
+
+        const sentences = splitIntoSentences(seg.text);
         for (const sentence of sentences) {
           if (sentence.length > maxLen && sentence.split(' ').length > 5) {
             splitLongLine(sentence, maxLen).forEach(l => rows.push(l));
