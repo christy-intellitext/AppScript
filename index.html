@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Script Line Splitter</title>
+<title>Script Line Splitter v1.4</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -216,7 +216,7 @@
 <div class="container">
 
   <header>
-    <h1>Script Line Splitter</h1>
+    <h1>Script Line Splitter <span style="font-size:13px;font-weight:400;color:#aaa;">v1.4</span></h1>
     <p class="subtitle">Paste a script, set your max line length, and download a numbered Excel file.</p>
   </header>
 
@@ -450,24 +450,36 @@ function splitLongLine(text, maxLen) {
 
 // ── Core split logic ──────────────────────────────────────────────────────────
 
-// ── FIX 2: Stage direction regex now requires meaningful content ──────────────
-// Previously, ANY [bracketed] token was treated as a stage direction, which
-// caused mid-word line-break artifacts like [ing] or [ed] to be extracted as
-// their own rows, splitting quoted sentences into fragments.
-// The new regex requires the bracket content to be at least 2 characters long
-// AND either all-uppercase (true stage directions like [APPLAUSE]) OR starting
-// with an uppercase letter (like [Laughter], [Music begins]). Short lowercase
-// fragments like [ing], [s], [ly] are left in place as part of the text.
+// ── Stage direction detection ─────────────────────────────────────────────────
+// Handles both [square bracket] and (parenthetical) forms.
+// Requires meaningful content -- short lowercase fragments like [ing] or (s)
+// are left in place as part of the text rather than extracted as stage directions.
+// Square bracket form: must be 2+ chars and either all-caps or capitalized + 4+ chars.
+// Parenthetical form: must be 3+ chars. Since parentheticals in scripts are almost
+// always stage directions regardless of case, we accept any content of sufficient length.
 function isStageDirection(token) {
-  const inner = token.slice(1, -1); // strip [ and ]
-  if (inner.length < 2) return false;
-  if (/^[A-Z][A-Z\s\d]+$/.test(inner)) return true;  // all-caps: [APPLAUSE], [MUSIC UP]
-  if (/^[A-Z]/.test(inner) && inner.length >= 4) return true; // capitalized and substantial: [Laughter]
+  const isParens = token.startsWith('(') && token.endsWith(')');
+  const isBracket = token.startsWith('[') && token.endsWith(']');
+  const inner = token.slice(1, -1).trim();
+
+  if (isParens) {
+    return inner.length >= 3; // (lead applause), (laughter), (pause) -- all qualify
+  }
+  if (isBracket) {
+    if (inner.length < 2) return false;
+    if (/^[A-Z][A-Z\s\d]+$/.test(inner)) return true;  // all-caps: [APPLAUSE], [MUSIC UP]
+    if (/^[A-Z]/.test(inner) && inner.length >= 4) return true; // capitalized: [Laughter]
+    return false;
+  }
   return false;
 }
 
 function splitScript(rawText, maxLen) {
   const rows = [];
+  // Track whether the last thing pushed was a stage direction so the
+  // very next text row (even across subPara boundaries) gets capitalized.
+  let lastWasStage = false;
+
   const paragraphs = rawText.split(/\r?\n/).map(cleanText).filter(Boolean);
 
   for (const para of paragraphs) {
@@ -487,23 +499,20 @@ function splitScript(rawText, maxLen) {
     if (remaining) subParas.push({ type: 'text', text: remaining });
 
     for (const sub of subParas) {
-      if (sub.type === 'speaker') { rows.push(sub.text); continue; }
+      if (sub.type === 'speaker') { rows.push(sub.text); lastWasStage = false; continue; }
 
-      // Split on bracket tokens, but only treat them as stage directions
-      // if they pass the isStageDirection() check. Ones that don't pass
-      // are left joined with surrounding text rather than extracted.
-      const tokens = sub.text.split(/((?:^|(?<=\s))\[[^\]]*\](?=\s|$))/);
+      // Split on both [bracket] and (parenthetical) tokens.
+      const tokens = sub.text.split(/((?:^|(?<=\s))(?:\[[^\]]*\]|\([^)]*\))(?=\s|$))/);
       const segments = [];
       let pending = '';
       for (const tok of tokens) {
         const t = tok.trim();
         if (!t) continue;
-        if (/^\[.*\]$/.test(t)) {
+        if (/^[\[(]/.test(t) && /[\])]$/.test(t)) {
           if (isStageDirection(t)) {
             if (pending) { segments.push({ type: 'text', text: pending.trim() }); pending = ''; }
             segments.push({ type: 'stage', text: t });
           } else {
-            // Not a real stage direction -- re-attach to surrounding text
             pending += (pending ? ' ' : '') + t;
           }
         } else {
@@ -514,16 +523,22 @@ function splitScript(rawText, maxLen) {
 
       for (let si = 0; si < segments.length; si++) {
         const seg = segments[si];
-        if (seg.type === 'stage') { rows.push(seg.text); continue; }
+        if (seg.type === 'stage') {
+          rows.push(seg.text);
+          lastWasStage = true;
+          continue;
+        }
 
-        // If this text segment immediately follows a stage direction, capitalize
-        // the first word -- the stage direction acts as an implicit sentence boundary.
+        // Capitalize the first word if the previous output was a stage direction --
+        // works both within a subPara (via segments) and across subPara boundaries
+        // (via the lastWasStage flag).
         const prevSeg = segments[si - 1];
-        const afterStage = prevSeg && prevSeg.type === 'stage';
+        const afterStage = lastWasStage || (prevSeg && prevSeg.type === 'stage');
         let segText = seg.text;
         if (afterStage) {
           segText = segText.replace(/^([a-z])/, c => c.toUpperCase());
         }
+        lastWasStage = false;
 
         const sentences = splitIntoSentences(segText);
         for (const sentence of sentences) {
