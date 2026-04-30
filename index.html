@@ -196,6 +196,7 @@
     z-index: 1;
   }
   thead th:first-child { width: 56px; text-align: center; }
+  thead th:last-child { width: 36px; }
 
   tbody tr:nth-child(even) td { background: #fafaf8; }
 
@@ -215,6 +216,35 @@
   }
   tbody td[contenteditable]:hover:not(:focus) { background: #f5f4ee !important; }
   tbody tr:last-child td { border-bottom: none; }
+
+  /* Delete button cell */
+  td.del-cell {
+    width: 36px;
+    text-align: center;
+    padding: 4px 6px;
+    vertical-align: middle;
+  }
+
+  .del-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: #ccc;
+    font-size: 15px;
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+    font-family: sans-serif;
+  }
+  .del-btn:hover {
+    background: #fdecea;
+    color: #b53a2f;
+  }
 
   footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
 </style>
@@ -264,7 +294,7 @@
       </div>
       <div class="preview-table-wrap">
         <table>
-          <thead><tr><th>#</th><th>Line</th></tr></thead>
+          <thead><tr><th>#</th><th>Line</th><th></th></tr></thead>
           <tbody id="previewBody"></tbody>
         </table>
       </div>
@@ -339,7 +369,6 @@ const PROTECTED_PHRASES = [
   'President Sandoval',
 ];
 
-// Applied per output row after splitting
 function applyUndoCapsToLine(text) {
   text = text.toLowerCase();
   text = capitalizeSentenceStarts(text);
@@ -468,23 +497,14 @@ function splitLongLine(text, maxLen) {
 
 // ── Paragraph joining ─────────────────────────────────────────────────────────
 
-// Determines whether a line is a "paragraph break" -- i.e. a blank line,
-// a stage direction, a speaker label, or a page-header line (date/page number).
-// These should NOT be joined with adjacent lines.
 function isParagraphBreak(line) {
   if (!line) return true;
-  // Stage direction: wrapped in parens or brackets
   if (/^\(.*\)$/.test(line) || /^\[.*\]$/.test(line)) return true;
-  // Speaker label: ends with colon
   if (/^[A-Za-z][A-Za-z\s'\-\.]*:$/.test(line)) return true;
-  // Page header heuristic: contains digits and looks like metadata (e.g. "12/6/2025December 2025 – AM Commencement ScriptPage 14 of 19")
   if (/\bpage\s+\d+\s+of\s+\d+\b/i.test(line)) return true;
   return false;
 }
 
-// Joins soft-wrapped lines within each paragraph into single continuous strings.
-// Hard paragraph breaks (blank lines, stage directions, speaker labels, headers)
-// are preserved as their own entries.
 function joinSoftWraps(rawText) {
   const lines = rawText.split(/\r?\n/).map(t => cleanText(t));
   const paragraphs = [];
@@ -492,17 +512,14 @@ function joinSoftWraps(rawText) {
 
   for (const line of lines) {
     if (!line) {
-      // Blank line = paragraph boundary
       if (current) { paragraphs.push(current); current = ''; }
       continue;
     }
     if (isParagraphBreak(line)) {
-      // Flush any pending text, then push this as its own paragraph
       if (current) { paragraphs.push(current); current = ''; }
       paragraphs.push(line);
       continue;
     }
-    // Regular text line -- join to current paragraph with a space
     current = current ? current + ' ' + line : line;
   }
   if (current) paragraphs.push(current);
@@ -533,7 +550,6 @@ function splitScript(rawText, maxLen) {
   const rows = [];
   let lastWasStage = false;
 
-  // Step 1: Join soft-wrapped lines into true paragraphs before any processing
   const paragraphs = joinSoftWraps(rawText);
 
   for (const para of paragraphs) {
@@ -608,6 +624,48 @@ function splitScript(rawText, maxLen) {
   return rows;
 }
 
+// ── Preview rendering ─────────────────────────────────────────────────────────
+
+function renumberRows() {
+  const rows = document.querySelectorAll('#previewBody tr');
+  rows.forEach((tr, i) => {
+    tr.cells[0].textContent = i + 1;
+  });
+  document.getElementById('rowCount').textContent = `${rows.length} rows`;
+}
+
+function deleteRow(btn) {
+  const tr = btn.closest('tr');
+  tr.remove();
+  renumberRows();
+}
+
+function buildRow(line) {
+  const tr = document.createElement('tr');
+
+  const td1 = document.createElement('td');
+  td1.textContent = ''; // will be set by renumberRows
+
+  const td2 = document.createElement('td');
+  td2.contentEditable = 'true';
+  td2.textContent = line;
+  td2.setAttribute('spellcheck', 'false');
+
+  const td3 = document.createElement('td');
+  td3.className = 'del-cell';
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.title = 'Delete row';
+  delBtn.innerHTML = '&times;';
+  delBtn.onclick = () => deleteRow(delBtn);
+  td3.appendChild(delBtn);
+
+  tr.appendChild(td1);
+  tr.appendChild(td2);
+  tr.appendChild(td3);
+  return tr;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function run() {
@@ -625,10 +683,6 @@ function run() {
   status.className = 'status';
 
   setTimeout(() => {
-    // Order of operations:
-    // 1. Join soft-wrapped input lines into paragraphs (inside splitScript)
-    // 2. Split into output rows by sentence/length
-    // 3. Apply undo-caps per output row (lowercase -> re-cap sentence starts -> restore protected words)
     const rows = splitScript(raw, maxLen);
 
     const finalRows = cleanupMode === 'caps'
@@ -639,20 +693,11 @@ function run() {
 
     const tbody = document.getElementById('previewBody');
     tbody.innerHTML = '';
-    finalRows.forEach((line, i) => {
-      const tr = document.createElement('tr');
-      const td1 = document.createElement('td');
-      td1.textContent = i + 1;
-      const td2 = document.createElement('td');
-      td2.contentEditable = 'true';
-      td2.textContent = line;
-      td2.setAttribute('spellcheck', 'false');
-      tr.appendChild(td1);
-      tr.appendChild(td2);
-      tbody.appendChild(tr);
+    finalRows.forEach(line => {
+      tbody.appendChild(buildRow(line));
     });
+    renumberRows();
 
-    document.getElementById('rowCount').textContent = `${finalRows.length} rows`;
     document.getElementById('previewWrap').style.display = '';
     document.getElementById('downloadBtn').disabled = false;
     status.textContent = `Done — ${finalRows.length} rows`;
