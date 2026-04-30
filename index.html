@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ScriptFeed Line Splitter v2.1</title>
+<title>ScriptFeed Line Splitter v2.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     font-family: 'Comfortaa', sans-serif;
-    background: #f5f4f0;
+    background: #dce4df;
     color: #1a1a1a;
     min-height: 100vh;
     padding: 40px 24px;
@@ -24,26 +24,34 @@
     gap: 20px;
   }
 
-  header { margin-bottom: 8px; }
-  h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #777; }
+  .logo-wrap {
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .logo-wrap img {
+    max-width: 200px;
+    display: inline-block;
+  }
+
+  header { margin-bottom: 4px; text-align: center; }
+  h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #5a7265; }
 
   .card {
-    background: #fff;
-    border: 1px solid #e4e2dc;
-    border-radius: 12px;
-    padding: 20px;
+    background: #f5f8f6;
+    border: 1px solid #b5c0bb;
+    border-radius: 10px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
   }
 
   label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: #888;
+    color: #1a1a1a;
     display: block;
     margin-bottom: 6px;
   }
@@ -51,131 +59,130 @@
   textarea {
     width: 100%;
     height: 220px;
-    padding: 12px 14px;
+    padding: 10px 12px;
     font-family: 'Comfortaa', sans-serif;
     font-size: 12px;
     line-height: 1.75;
-    background: #fafaf8;
-    border: 1px solid #e4e2dc;
-    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #b5c0bb;
+    border-radius: 6px;
     color: #1a1a1a;
     resize: vertical;
     outline: none;
     transition: border-color .15s;
+    margin-top: 6px;
   }
-  textarea:focus { border-color: #aaa; }
+  textarea:focus { border-color: #2c6a4d; }
   textarea::placeholder { color: #bbb; }
 
   .controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; }
 
-  input[type=number] {
-    width: 90px;
-    padding: 9px 12px;
+  input[type=number], input[type=text] {
+    padding: 8px 12px;
     font-family: 'Comfortaa', sans-serif;
     font-size: 13px;
-    background: #fafaf8;
-    border: 1px solid #e4e2dc;
-    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #b5c0bb;
+    border-radius: 6px;
     color: #1a1a1a;
     outline: none;
     transition: border-color .15s;
+    margin-top: 6px;
   }
-  input[type=number]:focus { border-color: #aaa; }
+  input[type=number] { width: 90px; }
+  input[type=text] { width: 100%; }
+  input[type=number]:focus,
+  input[type=text]:focus { border-color: #2c6a4d; }
 
   .options-row {
     display: flex;
     gap: 12px;
     align-items: center;
     padding: 10px 14px;
-    background: #fafaf8;
-    border: 1px solid #e4e2dc;
-    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #b5c0bb;
+    border-radius: 6px;
   }
 
   .option-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: #888;
+    color: #1a1a1a;
+    white-space: nowrap;
   }
 
   .toggle-btn {
     display: flex;
-    border: 1px solid #e4e2dc;
-    border-radius: 6px;
-    overflow: hidden;
+    gap: 10px;
   }
 
   .toggle-btn button {
-    padding: 5px 13px;
+    flex: 1;
+    padding: 6px 14px;
     font-family: 'Comfortaa', sans-serif;
     font-size: 12px;
-    font-weight: 500;
-    border: none;
+    font-weight: 600;
+    border: 1px solid #b5c0bb;
     background: #fff;
-    color: #888;
+    color: #444;
     cursor: pointer;
+    border-radius: 4px;
     transition: background .1s, color .1s;
   }
-
-  .toggle-btn button.active { background: #1a1a1a; color: #fff; }
-  .toggle-btn button + button { border-left: 1px solid #e4e2dc; }
-
-  #customWords {
-    flex: 1;
-    padding: 5px 10px;
-    font-family: 'Comfortaa', sans-serif;
-    font-size: 12px;
-    background: #fff;
-    border: 1px solid #e4e2dc;
-    border-radius: 6px;
-    color: #1a1a1a;
-    outline: none;
-    transition: border-color .15s;
+  .toggle-btn button.active {
+    background: #2c6a4d;
+    color: #fff;
+    border-color: #2c6a4d;
   }
-  #customWords:focus { border-color: #aaa; }
-  #customWords::placeholder { color: #bbb; }
 
-  .hint { font-size: 11px; color: #aaa; white-space: normal; }
+  .custom-words-row {
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #b5c0bb;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .hint { font-size: 11px; color: #888; }
 
   .btn {
-    padding: 9px 20px;
+    padding: 10px 20px;
     font-family: 'Comfortaa', sans-serif;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: opacity .15s, transform .1s;
+    transition: opacity .15s, background .15s;
     white-space: nowrap;
   }
-  .btn:active { transform: scale(.97); }
-  .btn-primary { background: #1a1a1a; color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #333; }
-  .btn-primary:disabled { opacity: .35; cursor: default; }
-  .btn-secondary { background: #f0efe9; border: 1px solid #e4e2dc; color: #1a1a1a; }
-  .btn-secondary:hover:not(:disabled) { background: #e8e7e0; }
-  .btn-secondary:disabled { opacity: .35; cursor: default; }
+  .btn-primary { background: #2c6a4d; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #245c41; }
+  .btn-primary:disabled { background: #9fb5ab; cursor: not-allowed; opacity: 0.7; }
+  .btn-secondary { background: #fff; border: 1px solid #b5c0bb; color: #1a1a1a; }
+  .btn-secondary:hover:not(:disabled) { background: #eef2f0; }
+  .btn-secondary:disabled { opacity: .4; cursor: default; }
 
-  .status { font-size: 12px; font-family: 'Comfortaa', sans-serif; color: #888; align-self: center; }
-  .status.ok { color: #2d7a3a; }
-  .status.err { color: #b53a2f; }
+  .status { font-size: 12px; font-family: 'Comfortaa', sans-serif; color: #5a7265; align-self: center; }
+  .status.ok { color: #2c6a4d; font-weight: 600; }
+  .status.err { color: #b00020; font-weight: 600; }
 
-  .preview-wrap { border: 1px solid #e4e2dc; border-radius: 8px; overflow: hidden; }
+  .preview-wrap { border: 1px solid #b5c0bb; border-radius: 6px; overflow: hidden; }
 
   .preview-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 8px 14px;
-    background: #fafaf8;
-    border-bottom: 1px solid #e4e2dc;
+    background: #eef2f0;
+    border-bottom: 1px solid #b5c0bb;
     font-size: 11px;
-    color: #888;
+    color: #5a7265;
     font-weight: 600;
-    letter-spacing: .05em;
+    letter-spacing: .04em;
     text-transform: uppercase;
   }
 
@@ -187,43 +194,37 @@
     position: sticky;
     top: 0;
     padding: 7px 12px;
-    background: #fafaf8;
-    border-bottom: 1px solid #e4e2dc;
-    color: #888;
-    font-weight: 500;
+    background: #eef2f0;
+    border-bottom: 1px solid #b5c0bb;
+    color: #5a7265;
+    font-weight: 600;
     text-align: left;
     white-space: nowrap;
     z-index: 1;
   }
-  thead th:first-child { width: 56px; text-align: center; }
+  thead th:first-child { width: 52px; text-align: center; }
   thead th:last-child { width: 36px; }
 
-  tbody tr:nth-child(even) td { background: #fafaf8; }
+  tbody tr:nth-child(even) td { background: #f5f8f6; }
 
   tbody td {
-    padding: 5px 12px;
-    border-bottom: 1px solid #f0efe9;
+    padding: 6px 12px;
+    border-bottom: 1px solid #e0e8e4;
     color: #1a1a1a;
     vertical-align: top;
     line-height: 1.6;
   }
-  tbody td:first-child { text-align: center; color: #bbb; font-size: 11px; width: 56px; }
+  tbody td:first-child { text-align: center; color: #9fb5ab; font-size: 11px; width: 52px; }
   tbody td[contenteditable] { outline: none; cursor: text; }
   tbody td[contenteditable]:focus {
-    background: #fffef5 !important;
-    box-shadow: inset 0 0 0 1px #d4c97a;
+    background: #f0faf4 !important;
+    box-shadow: inset 0 0 0 1px #2c6a4d;
     border-radius: 2px;
   }
-  tbody td[contenteditable]:hover:not(:focus) { background: #f5f4ee !important; }
+  tbody td[contenteditable]:hover:not(:focus) { background: #eef2f0 !important; }
   tbody tr:last-child td { border-bottom: none; }
 
-  /* Delete button cell */
-  td.del-cell {
-    width: 36px;
-    text-align: center;
-    padding: 4px 6px;
-    vertical-align: middle;
-  }
+  td.del-cell { width: 36px; text-align: center; padding: 4px 6px; vertical-align: middle; }
 
   .del-btn {
     display: inline-flex;
@@ -233,24 +234,25 @@
     height: 22px;
     border: none;
     background: transparent;
-    color: #ccc;
-    font-size: 15px;
+    color: #b5c0bb;
+    font-size: 16px;
     line-height: 1;
     border-radius: 4px;
     cursor: pointer;
     transition: background .12s, color .12s;
     font-family: sans-serif;
   }
-  .del-btn:hover {
-    background: #fdecea;
-    color: #b53a2f;
-  }
+  .del-btn:hover { background: #fdecea; color: #b00020; }
 
-  footer { text-align: center; font-size: 11px; color: #bbb; padding-top: 8px; }
+  footer { text-align: center; font-size: 11px; color: #9fb5ab; padding-top: 8px; }
 </style>
 </head>
 <body>
 <div class="container">
+
+  <div class="logo-wrap">
+    <img src="https://i.imgur.com/YkhiJRe.png" alt="Intellitext">
+  </div>
 
   <header>
     <h1>ScriptFeed Line Splitter</h1>
@@ -271,10 +273,10 @@
       </div>
     </div>
 
-    <div class="options-row" id="customWordsRow" style="display:none; flex-direction: column; align-items: flex-start; gap: 8px;">
-      <span class="option-label">Fix Capitalization</span>
-      <input type="text" id="customWords" placeholder="e.g., Transcriber, (Christy Joy), (TypeWell Transcriber)" style="width:100%;">
-      <span class="hint">Comma-separated words that should be capitalized. Exact matching phrases should be put in parentheses.</span>
+    <div class="custom-words-row" id="customWordsRow" style="display:none;">
+      <label style="margin-bottom:0;">Fix Capitalization</label>
+      <input type="text" id="customWords" placeholder="e.g., Transcriber, (Christy Joy), (TypeWell Transcriber)">
+      <span class="hint">Comma-separated words that should be capitalized. Exact matching phrases should be in parentheses.</span>
     </div>
 
     <div class="controls">
@@ -301,7 +303,7 @@
     </div>
   </div>
 
-  <footer>For authorized use only &nbsp;|&nbsp; Intellitext LLC 2026 &nbsp;|&nbsp; v2.1</footer>
+  <footer>For authorized use only &nbsp;|&nbsp; Intellitext LLC 2026 &nbsp;|&nbsp; v2.2</footer>
 
 </div>
 
@@ -347,9 +349,7 @@ function getCustomWords() {
   const raw = document.getElementById('customWords').value;
   return raw.split(',').map(w => w.trim()).filter(Boolean).map(entry => {
     const phraseMatch = entry.match(/^\((.+)\)$/);
-    if (phraseMatch) {
-      return { text: phraseMatch[1].trim(), phraseOnly: true };
-    }
+    if (phraseMatch) return { text: phraseMatch[1].trim(), phraseOnly: true };
     return { text: entry, phraseOnly: false };
   });
 }
@@ -523,7 +523,6 @@ function joinSoftWraps(rawText) {
     current = current ? current + ' ' + line : line;
   }
   if (current) paragraphs.push(current);
-
   return paragraphs;
 }
 
@@ -533,10 +532,7 @@ function isStageDirection(token) {
   const isParens = token.startsWith('(') && token.endsWith(')');
   const isBracket = token.startsWith('[') && token.endsWith(']');
   const inner = token.slice(1, -1).trim();
-
-  if (isParens) {
-    return inner.length >= 3;
-  }
+  if (isParens) return inner.length >= 3;
   if (isBracket) {
     if (inner.length < 2) return false;
     if (/^[A-Z][A-Z\s\d]+$/.test(inner)) return true;
@@ -596,18 +592,12 @@ function splitScript(rawText, maxLen) {
 
       for (let si = 0; si < segments.length; si++) {
         const seg = segments[si];
-        if (seg.type === 'stage') {
-          rows.push(seg.text);
-          lastWasStage = true;
-          continue;
-        }
+        if (seg.type === 'stage') { rows.push(seg.text); lastWasStage = true; continue; }
 
         const prevSeg = segments[si - 1];
         const afterStage = lastWasStage || (prevSeg && prevSeg.type === 'stage');
         let segText = seg.text;
-        if (afterStage) {
-          segText = segText.replace(/^([a-z])/, c => c.toUpperCase());
-        }
+        if (afterStage) segText = segText.replace(/^([a-z])/, c => c.toUpperCase());
         lastWasStage = false;
 
         const sentences = splitIntoSentences(segText);
@@ -628,15 +618,12 @@ function splitScript(rawText, maxLen) {
 
 function renumberRows() {
   const rows = document.querySelectorAll('#previewBody tr');
-  rows.forEach((tr, i) => {
-    tr.cells[0].textContent = i + 1;
-  });
+  rows.forEach((tr, i) => { tr.cells[0].textContent = i + 1; });
   document.getElementById('rowCount').textContent = `${rows.length} rows`;
 }
 
 function deleteRow(btn) {
-  const tr = btn.closest('tr');
-  tr.remove();
+  btn.closest('tr').remove();
   renumberRows();
 }
 
@@ -644,7 +631,6 @@ function buildRow(line) {
   const tr = document.createElement('tr');
 
   const td1 = document.createElement('td');
-  td1.textContent = ''; // will be set by renumberRows
 
   const td2 = document.createElement('td');
   td2.contentEditable = 'true';
@@ -684,7 +670,6 @@ function run() {
 
   setTimeout(() => {
     const rows = splitScript(raw, maxLen);
-
     const finalRows = cleanupMode === 'caps'
       ? rows.map(line => applyUndoCapsToLine(line))
       : rows;
@@ -693,9 +678,7 @@ function run() {
 
     const tbody = document.getElementById('previewBody');
     tbody.innerHTML = '';
-    finalRows.forEach(line => {
-      tbody.appendChild(buildRow(line));
-    });
+    finalRows.forEach(line => tbody.appendChild(buildRow(line)));
     renumberRows();
 
     document.getElementById('previewWrap').style.display = '';
