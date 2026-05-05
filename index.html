@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij4KICA8dGV4dCB5PSI1MiIgZm9udC1zaXplPSI1MiIgZm9udC1mYW1pbHk9IkFwcGxlIENvbG9yIEVtb2ppLCBTZWdvZSBVSSBFbW9qaSwgTm90byBDb2xvciBFbW9qaSwgc2VyaWYiPuKcgu+4jzwvdGV4dD4KPC9zdmc+">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ScriptFeed Line Splitter v2.2</title>
+<title>ScriptFeed Line Splitter v2.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -187,6 +187,32 @@
     text-transform: uppercase;
   }
 
+  .preview-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Add row at end button in header */
+  .btn-add-end {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    background: #2c6a4d;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: .02em;
+    transition: background .12s;
+    text-transform: none;
+  }
+  .btn-add-end:hover { background: #245c41; }
+
   .preview-table-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
 
   table { width: 100%; border-collapse: collapse; font-family: 'Comfortaa', sans-serif; font-size: 12px; }
@@ -204,7 +230,8 @@
     z-index: 1;
   }
   thead th:first-child { width: 52px; text-align: center; }
-  thead th:last-child { width: 36px; }
+  thead th:nth-child(3) { width: 28px; } /* insert col */
+  thead th:last-child { width: 36px; }   /* delete col */
 
   tbody tr:nth-child(even) td { background: #f5f8f6; }
 
@@ -225,9 +252,19 @@
   tbody td[contenteditable]:hover:not(:focus) { background: #eef2f0 !important; }
   tbody tr:last-child td { border-bottom: none; }
 
-  td.del-cell { width: 36px; text-align: center; padding: 4px 6px; vertical-align: middle; }
+  /* newly inserted row highlight */
+  tbody tr.new-row td {
+    animation: rowHighlight 1s ease forwards;
+  }
+  @keyframes rowHighlight {
+    0%   { background: #d4f0e3; }
+    100% { background: transparent; }
+  }
 
-  .del-btn {
+  td.action-cell { width: 28px; text-align: center; padding: 4px 2px; vertical-align: middle; }
+  td.del-cell    { width: 36px; text-align: center; padding: 4px 6px; vertical-align: middle; }
+
+  .ins-btn, .del-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -235,14 +272,18 @@
     height: 22px;
     border: none;
     background: transparent;
-    color: #b5c0bb;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1;
     border-radius: 4px;
     cursor: pointer;
     transition: background .12s, color .12s;
     font-family: sans-serif;
   }
+
+  .ins-btn { color: #9fb5ab; font-size: 17px; }
+  .ins-btn:hover { background: #d4f0e3; color: #2c6a4d; }
+
+  .del-btn { color: #b5c0bb; font-size: 16px; }
   .del-btn:hover { background: #fdecea; color: #b00020; }
 
   footer { text-align: center; font-size: 11px; color: #9fb5ab; padding-top: 8px; }
@@ -292,19 +333,22 @@
 
     <div class="preview-wrap" id="previewWrap" style="display:none">
       <div class="preview-header">
-        <span>Preview</span>
+        <div class="preview-header-left">
+          <span>Preview</span>
+          <button class="btn-add-end" onclick="addRowAtEnd()" title="Add a blank row at the bottom">+ Add row</button>
+        </div>
         <span id="rowCount"></span>
       </div>
       <div class="preview-table-wrap">
         <table>
-          <thead><tr><th>#</th><th>Line</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Line</th><th></th><th></th></tr></thead>
           <tbody id="previewBody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <footer>For authorized use only &nbsp;|&nbsp; Intellitext LLC 2026 &nbsp;|&nbsp; v2.2</footer>
+  <footer>For authorized use only &nbsp;|&nbsp; Intellitext LLC 2026 &nbsp;|&nbsp; v2.3</footer>
 
 </div>
 
@@ -628,8 +672,28 @@ function deleteRow(btn) {
   renumberRows();
 }
 
-function buildRow(line) {
+function insertRowAfter(btn) {
+  const refRow = btn.closest('tr');
+  const newTr = buildRow('', true);
+  refRow.insertAdjacentElement('afterend', newTr);
+  renumberRows();
+  // focus the new row's editable cell
+  newTr.cells[1].focus();
+}
+
+function addRowAtEnd() {
+  const tbody = document.getElementById('previewBody');
+  const newTr = buildRow('', true);
+  tbody.appendChild(newTr);
+  renumberRows();
+  newTr.cells[1].focus();
+  // scroll into view
+  newTr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function buildRow(line, isNew) {
   const tr = document.createElement('tr');
+  if (isNew) tr.classList.add('new-row');
 
   const td1 = document.createElement('td');
 
@@ -638,18 +702,30 @@ function buildRow(line) {
   td2.textContent = line;
   td2.setAttribute('spellcheck', 'false');
 
+  // insert-below button cell
   const td3 = document.createElement('td');
-  td3.className = 'del-cell';
+  td3.className = 'action-cell';
+  const insBtn = document.createElement('button');
+  insBtn.className = 'ins-btn';
+  insBtn.title = 'Insert blank row below';
+  insBtn.innerHTML = '+';
+  insBtn.onclick = () => insertRowAfter(insBtn);
+  td3.appendChild(insBtn);
+
+  // delete button cell
+  const td4 = document.createElement('td');
+  td4.className = 'del-cell';
   const delBtn = document.createElement('button');
   delBtn.className = 'del-btn';
   delBtn.title = 'Delete row';
   delBtn.innerHTML = '&times;';
   delBtn.onclick = () => deleteRow(delBtn);
-  td3.appendChild(delBtn);
+  td4.appendChild(delBtn);
 
   tr.appendChild(td1);
   tr.appendChild(td2);
   tr.appendChild(td3);
+  tr.appendChild(td4);
   return tr;
 }
 
@@ -679,7 +755,7 @@ function run() {
 
     const tbody = document.getElementById('previewBody');
     tbody.innerHTML = '';
-    finalRows.forEach(line => tbody.appendChild(buildRow(line)));
+    finalRows.forEach(line => tbody.appendChild(buildRow(line, false)));
     renumberRows();
 
     document.getElementById('previewWrap').style.display = '';
