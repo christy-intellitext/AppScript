@@ -768,32 +768,24 @@ function run() {
 // ── Excel export ──────────────────────────────────────────────────────────────
 
 function downloadExcel() {
-  const editedRows = [...document.querySelectorAll('#previewBody tr')].map(tr => tr.cells[1].textContent);
+  const editedRows = [...document.querySelectorAll('#previewBody tr')].map(tr =>
+    tr.cells[1].textContent.replace(/\u00A0/g, ' ').trim()
+  );
   if (!editedRows.length) return;
 
   const wsData = [['#', 'Line', 'Combined']];
   editedRows.forEach((line, i) => {
-    wsData.push([i + 1, line, { f: `TRIM(A${i+2}&" "&B${i+2})` }]);
+    const num = i + 1;
+    wsData.push([num, line, `${num} ${line}`]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  const boldStyle = { font: { bold: true } };
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let R = 0; R <= range.e.r; R++) {
-    const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
-    if (ws[cellA]) ws[cellA].s = boldStyle;
-  }
-  for (let C = 0; C <= 2; C++) {
-    const cell = XLSX.utils.encode_cell({ r: 0, c: C });
-    if (ws[cell]) ws[cell].s = boldStyle;
-  }
 
   ws['!cols'] = [{ wch: 6 }, { wch: 80 }, { wch: 90 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Script Lines');
-  XLSX.writeFile(wb, 'script_lines.xlsx', { cellStyles: true });
+  XLSX.writeFile(wb, 'script_lines.xlsx');
 }
 
 document.addEventListener('keydown', e => {
