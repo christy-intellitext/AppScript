@@ -193,7 +193,6 @@
     gap: 10px;
   }
 
-  /* Add row at end button in header */
   .btn-add-end {
     display: inline-flex;
     align-items: center;
@@ -230,8 +229,8 @@
     z-index: 1;
   }
   thead th:first-child { width: 52px; text-align: center; }
-  thead th:nth-child(3) { width: 28px; } /* insert col */
-  thead th:last-child { width: 36px; }   /* delete col */
+  thead th:nth-child(3) { width: 28px; }
+  thead th:last-child { width: 36px; }
 
   tbody tr:nth-child(even) td { background: #f5f8f6; }
 
@@ -252,7 +251,6 @@
   tbody td[contenteditable]:hover:not(:focus) { background: #eef2f0 !important; }
   tbody tr:last-child td { border-bottom: none; }
 
-  /* newly inserted row highlight */
   tbody tr.new-row td {
     animation: rowHighlight 1s ease forwards;
   }
@@ -677,7 +675,6 @@ function insertRowAfter(btn) {
   const newTr = buildRow('', true);
   refRow.insertAdjacentElement('afterend', newTr);
   renumberRows();
-  // focus the new row's editable cell
   newTr.cells[1].focus();
 }
 
@@ -687,7 +684,6 @@ function addRowAtEnd() {
   tbody.appendChild(newTr);
   renumberRows();
   newTr.cells[1].focus();
-  // scroll into view
   newTr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -702,7 +698,6 @@ function buildRow(line, isNew) {
   td2.textContent = line;
   td2.setAttribute('spellcheck', 'false');
 
-  // insert-below button cell
   const td3 = document.createElement('td');
   td3.className = 'action-cell';
   const insBtn = document.createElement('button');
@@ -712,7 +707,6 @@ function buildRow(line, isNew) {
   insBtn.onclick = () => insertRowAfter(insBtn);
   td3.appendChild(insBtn);
 
-  // delete button cell
   const td4 = document.createElement('td');
   td4.className = 'del-cell';
   const delBtn = document.createElement('button');
@@ -769,18 +763,17 @@ function run() {
 
 function downloadExcel() {
   const editedRows = [...document.querySelectorAll('#previewBody tr')].map(tr =>
-    tr.cells[1].textContent.replace(/\u00A0/g, ' ').trim()
+    tr.cells[1].textContent.replace(/\u00A0/g, ' ').replace(/\n/g, ' ').trim()
   );
   if (!editedRows.length) return;
 
   const wsData = [['#', 'Line', 'Combined']];
   editedRows.forEach((line, i) => {
     const num = i + 1;
-    wsData.push([num, line, `${num} ${line}`]);
+    wsData.push([num, line, { f: `A${i+2}&" "&B${i+2}` }]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-
   ws['!cols'] = [{ wch: 6 }, { wch: 80 }, { wch: 90 }];
 
   const wb = XLSX.utils.book_new();
